@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Log - Your Daily Memory Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .auth-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        /* Input Mode Tabs */
+        .input-mode-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #f5f5f5;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Voice Input Section */
+        .voice-input-section {
+            display: block;
+        }
+
+        .voice-input-section.hidden {
+            display: none;
+        }
+
+        .record-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+        }
+
+        .record-button.recording {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Text Input Section */
+        .text-input-section {
+            display: none;
+        }
+
+        .text-input-section.show {
+            display: block;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            resize: vertical;
+            min-height: 150px;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.1em;
+            color: #666;
+            min-height: 30px;
+        }
+
+        /* Question Section */
+        .question-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .question-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .quick-questions {
+            margin-top: 20px;
+        }
+
+        .quick-questions h3 {
+            font-size: 1em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .quick-question-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+
+        .quick-question-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-google {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px auto;
+            font-size: 1em;
+        }
+
+        .btn-google:hover {
+            border-color: #667eea;
+        }
+
+        /* Logs Section */
+        .logs-container {
+            grid-column: 1 / -1;
+        }
+
+        .log-item {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .log-time {
+            font-size: 0.9em;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .log-text {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .log-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            font-weight: 600;
+        }
+
+        .badge-voice {
+            background: #e8f4ff;
+            color: #2196F3;
+        }
+
+        .badge-text {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        /* Answer Display */
+        .answer-box {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .answer-box.show {
+            display: block;
+        }
+
+        .answer-text {
+            color: #333;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .spinner.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* User Info */
+        .user-info {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .user-info.show {
+            display: flex;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .record-button {
+                width: 150px;
+                height: 150px;
+            }
+        }
+
+        /* Subscription Banner */
+        .subscription-banner {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .subscription-banner.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upgrade-btn {
+            background: white;
+            color: #f5576c;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Voice indicator */
+        .voice-indicator {
+            text-align: center;
+            color: #667eea;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎤 Voice Log</h1>
+            <p>Your AI-Powered Daily Memory Assistant</p>
+        </div>
+
+        <!-- User Info Bar -->
+        <div class="user-info" id="userInfo">
+            <span class="user-name" id="userName">Loading...</span>
+            <button class="btn btn-secondary" onclick="signOut()">Sign Out</button>
+        </div>
+
+        <!-- Subscription Banner -->
+        <div class="subscription-banner" id="subscriptionBanner">
+            <div>
+                <strong>Free Plan:</strong> <span id="usageInfo">20 logs remaining this month</span>
+            </div>
+            <button class="upgrade-btn" onclick="showUpgradeModal()">Upgrade</button>
+        </div>
+
+        <!-- Auth Section (Sign In) -->
+        <div class="auth-section" id="authSection">
+            <h2>Welcome to Voice Log</h2>
+            <p style="color: #666; margin: 20px 0;">Sign in to start logging your daily activities and get AI-powered insights.</p>
+            
+            <button class="btn btn-google" onclick="signInWithGoogle()">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Sign in with Google
+            </button>
+
+            <p style="color: #999; font-size: 0.9em; margin-top: 20px;">
+                By signing in, you agree to our Terms of Service and Privacy Policy.
+            </p>
+        </div>
+
+        <!-- Main Content (after sign in) -->
+        <div class="main-content" id="mainContent">
+            <!-- Record Section -->
+            <div class="card">
+                <h2>📝 Record Activity</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Use voice or type to log your activities
+                </p>
+
+                <!-- Input Mode Tabs -->
+                <div class="input-mode-tabs">
+                    <button class="tab-button active" onclick="switchRecordMode('voice')">
+                        🎤 Voice
+                    </button>
+                    <button class="tab-button" onclick="switchRecordMode('text')">
+                        ⌨️ Text
+                    </button>
+                </div>
+
+                <!-- Voice Input -->
+                <div class="voice-input-section" id="voiceRecordSection">
+                    <button class="record-button" id="recordButton" onclick="toggleRecording()">
+                        <div id="recordButtonText">🎤 TAP TO RECORD</div>
+                    </button>
+                    <div class="voice-indicator" id="voiceIndicator"></div>
+                </div>
+
+                <!-- Text Input -->
+                <div class="text-input-section" id="textRecordSection">
+                    <textarea 
+                        class="text-input" 
+                        id="activityTextInput"
+                        placeholder="Type what you did today...&#10;&#10;Example: I went for a 30-minute walk this morning, then had oatmeal for breakfast."></textarea>
+                    <button class="btn btn-primary" onclick="submitTextActivity()">
+                        📝 Save Activity
+                    </button>
+                </div>
+
+                <div class="status" id="recordStatus"></div>
+                <div class="spinner" id="recordSpinner"></div>
+            </div>
+
+            <!-- Question Section -->
+            <div class="card">
+                <h2>❓ Ask Questions</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Ask using voice or text
+                </p>
+
+                <!-- Input Mode Tabs -->
+                <div class="input-mode-tabs">
+                    <button class="tab-button active" onclick="switchQuestionMode('text')">
+                        ⌨️ Text
+                    </button>
+                    <button class="tab-button" onclick="switchQuestionMode('voice')">
+                        🎤 Voice
+                    </button>
+                </div>
+
+                <!-- Text Question Input -->
+                <div class="text-input-section show" id="textQuestionSection">
+                    <textarea 
+                        class="question-input" 
+                        id="questionInput"
+                        placeholder="What did I eat yesterday?"></textarea>
+
+                    <button class="btn btn-primary" onclick="askQuestion()">
+                        ✨ Ask AI
+                    </button>
+                </div>
+
+                <!-- Voice Question Input -->
+                <div class="voice-input-section hidden" id="voiceQuestionSection">
+                    <button class="record-button" id="questionRecordButton" onclick="toggleQuestionRecording()" style="width: 150px; height: 150px;">
+                        <div id="questionRecordButtonText">🎤 ASK</div>
+                    </button>
+                    <div class="voice-indicator" id="questionVoiceIndicator"></div>
+                </div>
+
+                <div class="spinner" id="questionSpinner"></div>
+
+                <div class="answer-box" id="answerBox">
+                    <strong style="color: #667eea;">AI Answer:</strong>
+                    <div class="answer-text" id="answerText"></div>
+                    <audio class="audio-player" id="audioPlayer" controls style="display: none;"></audio>
+                </div>
+
+                <div class="quick-questions">
+                    <h3>Quick Questions:</h3>
+                    <button class="quick-question-btn" onclick="quickQuestion('Did I take my medication today?')">
+                        💊 Did I take my medication today?
+                    </button>
+                    <button class="quick-question-btn" onclick="quickQuestion('What did I eat yesterday?')">
+                        🍽️ What did I eat yesterday?
+                    </button>
+                    <button class="quick-question-btn" onclick="quickQuestion('What activities did I do this week?')">
+                        📅 What activities did I do this week?
+                    </button>
+                    <button class="quick-question-btn" onclick="quickQuestion('When was my last doctor visit?')">
+                        🏥 When was my last doctor visit?
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Logs -->
+            <div class="card logs-container">
+                <h2>📋 Recent Activities</h2>
+                <div id="logsContainer">
+                    <p style="color: #999; text-align: center; padding: 40px;">
+                        No activities yet. Start by recording your first log!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - CHANGE THIS TO YOUR RAILWAY URL
+        const API_URL = 'http://localhost:8000';  // Local testing
+        // const API_URL = 'https://your-app.up.railway.app';  // Production
+
+        let accessToken = null;
+        let mediaRecorder = null;
+        let questionMediaRecorder = null;
+        let audioChunks = [];
+        let questionAudioChunks = [];
+        let isRecording = false;
+        let isQuestionRecording = false;
+
+        // Voice preference - pleasant feminine voice
+        const VOICE_PREFERENCE = 'female_gentle';  // Options: female_gentle, female_energetic
+
+        // ================================================================
+        // INITIALIZATION
+        // ================================================================
+
+        window.addEventListener('load', () => {
+            const savedToken = localStorage.getItem('accessToken');
+            const savedUser = localStorage.getItem('user');
+
+            if (savedToken && savedUser) {
+                accessToken = savedToken;
+                const user = JSON.parse(savedUser);
+                showMainContent(user);
+                loadRecentLogs();
+                loadSubscriptionInfo();
+            }
+        });
+
+        // ================================================================
+        // MODE SWITCHING
+        // ================================================================
+
+        function switchRecordMode(mode) {
+            const tabs = document.querySelectorAll('#mainContent .card:first-child .tab-button');
+            const voiceSection = document.getElementById('voiceRecordSection');
+            const textSection = document.getElementById('textRecordSection');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            if (mode === 'voice') {
+                tabs[0].classList.add('active');
+                voiceSection.style.display = 'block';
+                textSection.classList.remove('show');
+            } else {
+                tabs[1].classList.add('active');
+                voiceSection.style.display = 'none';
+                textSection.classList.add('show');
+            }
+        }
+
+        function switchQuestionMode(mode) {
+            const tabs = document.querySelectorAll('#mainContent .card:nth-child(2) .tab-button');
+            const textSection = document.getElementById('textQuestionSection');
+            const voiceSection = document.getElementById('voiceQuestionSection');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            if (mode === 'text') {
+                tabs[0].classList.add('active');
+                textSection.classList.add('show');
+                voiceSection.classList.add('hidden');
+            } else {
+                tabs[1].classList.add('active');
+                textSection.classList.remove('show');
+                voiceSection.classList.remove('hidden');
+            }
+        }
+
+        // ================================================================
+        // AUTHENTICATION
+        // ================================================================
+
+        async function signInWithGoogle() {
+            alert('Google Sign-In would be integrated here.\n\nFor demo, signing you in automatically.');
+            
+            const mockUser = {
+                id: 'demo_user',
+                name: 'Demo User',
+                email: 'demo@example.com'
+            };
+            
+            accessToken = 'demo_token_12345';
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('user', JSON.stringify(mockUser));
+            
+            showMainContent(mockUser);
+            loadRecentLogs();
+            loadSubscriptionInfo();
+        }
+
+        function signOut() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            accessToken = null;
+            
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('userInfo').classList.remove('show');
+        }
+
+        function showMainContent(user) {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'grid';
+            document.getElementById('userInfo').classList.add('show');
+            document.getElementById('userName').textContent = `Hello, ${user.name}!`;
+        }
+
+        // ================================================================
+        // VOICE RECORDING (Activity)
+        // ================================================================
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                await stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener('stop', () => {
+                    processRecording();
+                });
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                document.getElementById('recordButton').classList.add('recording');
+                document.getElementById('recordButtonText').textContent = '⏹️ STOP';
+                document.getElementById('recordStatus').textContent = '';
+                document.getElementById('voiceIndicator').textContent = '🔴 Recording...';
+            } catch (error) {
+                console.error('Recording error:', error);
+                alert('Could not access microphone. Please allow microphone access.');
+            }
+        }
+
+        async function stopRecording() {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            isRecording = false;
+
+            document.getElementById('recordButton').classList.remove('recording');
+            document.getElementById('recordButtonText').textContent = '🎤 TAP TO RECORD';
+            document.getElementById('recordStatus').textContent = 'Processing...';
+            document.getElementById('voiceIndicator').textContent = '';
+        }
+
+        async function processRecording() {
+            document.getElementById('recordSpinner').classList.add('show');
+
+            try {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const base64Audio = await blobToBase64(audioBlob);
+
+                const response = await fetch(`${API_URL}/logs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        audio_base64: base64Audio,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save log');
+                }
+
+                const data = await response.json();
+                document.getElementById('recordStatus').innerHTML = 
+                    `✅ Logged: "${data.transcription}"`;
+                
+                loadRecentLogs();
+
+            } catch (error) {
+                console.error('Error processing recording:', error);
+                document.getElementById('recordStatus').textContent = 
+                    '❌ Error saving log. Please try again.';
+            } finally {
+                document.getElementById('recordSpinner').classList.remove('show');
+            }
+        }
+
+        // ================================================================
+        // TEXT ACTIVITY SUBMISSION
+        // ================================================================
+
+        async function submitTextActivity() {
+            const text = document.getElementById('activityTextInput').value.trim();
+            
+            if (!text) {
+                alert('Please enter an activity description');
+                return;
+            }
+
+            document.getElementById('recordSpinner').classList.add('show');
+            document.getElementById('recordStatus').textContent = 'Saving...';
+
+            try {
+                const response = await fetch(`${API_URL}/logs/text`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save log');
+                }
+
+                const data = await response.json();
+                document.getElementById('recordStatus').innerHTML = 
+                    `✅ Activity logged successfully!`;
+                document.getElementById('activityTextInput').value = '';
+                
+                loadRecentLogs();
+
+            } catch (error) {
+                console.error('Error saving activity:', error);
+                document.getElementById('recordStatus').textContent = 
+                    '❌ Error saving activity. Please try again.';
+            } finally {
+                document.getElementById('recordSpinner').classList.remove('show');
+            }
+        }
+
+        // ================================================================
+        // VOICE QUESTION RECORDING
+        // ================================================================
+
+        async function toggleQuestionRecording() {
+            if (!isQuestionRecording) {
+                await startQuestionRecording();
+            } else {
+                await stopQuestionRecording();
+            }
+        }
+
+        async function startQuestionRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                questionMediaRecorder = new MediaRecorder(stream);
+                questionAudioChunks = [];
+
+                questionMediaRecorder.addEventListener('dataavailable', event => {
+                    questionAudioChunks.push(event.data);
+                });
+
+                questionMediaRecorder.addEventListener('stop', () => {
+                    processQuestionRecording();
+                });
+
+                questionMediaRecorder.start();
+                isQuestionRecording = true;
+
+                document.getElementById('questionRecordButton').classList.add('recording');
+                document.getElementById('questionRecordButtonText').textContent = '⏹️ STOP';
+                document.getElementById('questionVoiceIndicator').textContent = '🔴 Recording question...';
+            } catch (error) {
+                console.error('Recording error:', error);
+                alert('Could not access microphone.');
+            }
+        }
+
+        async function stopQuestionRecording() {
+            questionMediaRecorder.stop();
+            questionMediaRecorder.stream.getTracks().forEach(track => track.stop());
+            isQuestionRecording = false;
+
+            document.getElementById('questionRecordButton').classList.remove('recording');
+            document.getElementById('questionRecordButtonText').textContent = '🎤 ASK';
+            document.getElementById('questionVoiceIndicator').textContent = 'Processing...';
+        }
+
+        async function processQuestionRecording() {
+            document.getElementById('questionSpinner').classList.add('show');
+            document.getElementById('answerBox').classList.remove('show');
+
+            try {
+                const audioBlob = new Blob(questionAudioChunks, { type: 'audio/webm' });
+                const base64Audio = await blobToBase64(audioBlob);
+
+                // First, transcribe the question
+                const transcribeResponse = await fetch(`${API_URL}/transcribe`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        audio_base64: base64Audio
+                    })
+                });
+
+                if (!transcribeResponse.ok) {
+                    throw new Error('Failed to transcribe question');
+                }
+
+                const transcribeData = await transcribeResponse.json();
+                const question = transcribeData.text;
+
+                document.getElementById('questionInput').value = question;
+                document.getElementById('questionVoiceIndicator').textContent = `Heard: "${question}"`;
+
+                // Now ask the question
+                await askQuestion();
+
+            } catch (error) {
+                console.error('Error processing question:', error);
+                document.getElementById('questionVoiceIndicator').textContent = '❌ Error processing question';
+            } finally {
+                document.getElementById('questionSpinner').classList.remove('show');
+            }
+        }
+
+        // ================================================================
+        // TEXT QUESTIONS
+        // ================================================================
+
+        async function askQuestion() {
+            const question = document.getElementById('questionInput').value.trim();
+            
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            document.getElementById('questionSpinner').classList.add('show');
+            document.getElementById('answerBox').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/ask`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        voice_response: true,
+                        voice_preference: VOICE_PREFERENCE  // Feminine voice
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get answer');
+                }
+
+                const data = await response.json();
+
+                document.getElementById('answerText').textContent = data.answer_text;
+                document.getElementById('answerBox').classList.add('show');
+
+                if (data.answer_audio_url) {
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.src = `${API_URL}${data.answer_audio_url}`;
+                    audioPlayer.style.display = 'block';
+                    audioPlayer.play(); // Auto-play the pleasant feminine voice
+                }
+
+            } catch (error) {
+                console.error('Error asking question:', error);
+                alert('Failed to get answer. Please try again.');
+            } finally {
+                document.getElementById('questionSpinner').classList.remove('show');
+            }
+        }
+
+        function quickQuestion(question) {
+            document.getElementById('questionInput').value = question;
+            switchQuestionMode('text'); // Switch to text mode to show the question
+            askQuestion();
+        }
+
+        // ================================================================
+        // LOGS
+        // ================================================================
+
+        async function loadRecentLogs() {
+            try {
+                const response = await fetch(`${API_URL}/logs?days=7`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load logs');
+                }
+
+                const logs = await response.json();
+                displayLogs(logs);
+
+            } catch (error) {
+                console.error('Error loading logs:', error);
+            }
+        }
+
+        function displayLogs(logs) {
+            const container = document.getElementById('logsContainer');
+            
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <p style="color: #999; text-align: center; padding: 40px;">
+                        No activities yet. Start by recording your first log!
+                    </p>
+                `;
+                return;
+            }
+
+            container.innerHTML = logs.map(log => {
+                const inputType = log.input_type || 'voice';
+                const badge = inputType === 'voice' ? 
+                    '<span class="log-badge badge-voice">🎤 Voice</span>' : 
+                    '<span class="log-badge badge-text">⌨️ Text</span>';
+                
+                return `
+                    <div class="log-item">
+                        <div class="log-time">
+                            ${new Date(log.timestamp).toLocaleString()}
+                            ${badge}
+                        </div>
+                        <div class="log-text">${log.transcription}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ================================================================
+        // SUBSCRIPTION
+        // ================================================================
+
+        async function loadSubscriptionInfo() {
+            try {
+                const response = await fetch(`${API_URL}/subscription`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                if (data.tier === 'free') {
+                    const logsRemaining = data.limits.logs_per_month - data.usage.logs_this_month;
+                    document.getElementById('usageInfo').textContent = 
+                        `${logsRemaining} logs remaining this month`;
+                    document.getElementById('subscriptionBanner').classList.add('show');
+                }
+
+            } catch (error) {
+                console.error('Error loading subscription:', error);
+            }
+        }
+
+        function showUpgradeModal() {
+            alert('Upgrade to Premium:\n\n✨ Unlimited logs\n✨ Unlimited questions\n✨ Premium voice quality\n✨ Family sharing\n\nOnly $14.99/month!');
+        }
+
+        // ================================================================
+        // UTILITIES
+        // ================================================================
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+    </script>
+</body>
+</html>
