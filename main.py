@@ -25,6 +25,12 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+import sys
+# Workaround for Python 3.13 + SQLAlchemy compatibility
+if sys.version_info >= (3, 13):
+    import warnings
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    
 # Import existing modules
 from database import (
     get_db, Base, engine,
