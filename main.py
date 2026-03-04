@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-import jwt
+from jose import jwt
 import os
 import uuid
 import time
