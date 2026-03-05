@@ -33,12 +33,12 @@ if sys.version_info >= (3, 13):
     
 # Import existing modules
 from database import (
-    get_db, Base, engine,
-    User,
+    Base, engine, get_db,
+    User, VoiceLog, FamilyMember, Subscription, PushSubscription, AIQuery,
     create_user, get_user_by_id, get_user_by_email,
-    create_voice_log, get_user_logs,
-    log_ai_query
+    create_voice_log, get_user_logs, log_ai_query
 )
+
 from audio_processing import (
     transcribe_audio_from_base64,
     text_to_speech,
@@ -966,6 +966,3 @@ async def root():
         ]
     }
 
-#if __name__ == "__main__":
-##    import uvicorn
-#    uvicorn.run(app, host="0.0.0.0", port=PORT)
