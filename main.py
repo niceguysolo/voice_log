@@ -9,6 +9,7 @@ Features:
 
 from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -54,6 +55,15 @@ app = FastAPI(
     version="5.0.0"
 )
 
+# Check if static directory exists
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    
+    @app.get("/")
+    async def root():
+        """Serve the web frontend"""
+        return FileResponse('static/index.html')
+    
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -367,14 +377,6 @@ def send_trial_reminder(user_email: str, user_name: str, days_left: int):
 # ============================================================================
 # ENDPOINTS - AUTH
 # ============================================================================
-
-@app.get("/")
-def read_root():
-    """
-    Handles GET requests to the root URL.
-    Returns a welcome message in JSON format.
-    """
-    return {"message": "Welcome to the application"}
 
 
 @app.post("/auth/google")
