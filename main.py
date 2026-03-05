@@ -368,6 +368,15 @@ def send_trial_reminder(user_email: str, user_name: str, days_left: int):
 # ENDPOINTS - AUTH
 # ============================================================================
 
+@app.get("/")
+def read_root():
+    """
+    Handles GET requests to the root URL.
+    Returns a welcome message in JSON format.
+    """
+    return {"message": "Welcome to the application"}
+
+
 @app.post("/auth/google")
 async def google_sign_in(signin: dict, db: Session = Depends(get_db)):
     """Sign in with Google - creates 7-day trial for new users"""
