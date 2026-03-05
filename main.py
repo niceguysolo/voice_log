@@ -796,6 +796,8 @@ async def add_family_member(
     db: Session = Depends(get_db)
 ):
     """Add family member (limited to 1)"""
+    import time
+    start = time.time()
     
     # Check if family member already exists
     existing = db.query(FamilyMember).filter(
@@ -823,7 +825,7 @@ async def add_family_member(
     db.add(family_member)
     db.commit()
     db.refresh(family_member)
-    
+    print(f"[DEBUG] Total time: {(time.time() - start)*1000:.0f}ms")
     # Send welcome email to family member
     user = get_user_by_id(db, user_id)
     send_email(
