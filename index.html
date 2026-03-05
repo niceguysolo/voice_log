@@ -824,7 +824,7 @@ Example: I went for a 30-minute walk and had breakfast."
 
     <script>
         // Configuration
-        const API_URL = ''; // Change to your Railway URL
+        const API_URL = 'http://localhost:8000'; // Change to your Railway URL
         
         // State
         let accessToken = null;
@@ -853,20 +853,24 @@ Example: I went for a 30-minute walk and had breakfast."
         // ============================================================================
 
         async function signInWithGoogle() {
-            // TODO: Implement actual Google Sign-In
-            // For now, using mock data
-            const mockToken = 'mock_google_token';
-            await signInWithBackend(mockToken);
+            // Simple email-based sign in
+            const email = prompt('Enter your email address:');
+            if (!email) return;
+            
+            const name = prompt('Enter your name:');
+            if (!name) return;
+            
+            await signInWithBackend(email, name);
         }
 
-        async function signInWithBackend(googleToken) {
+        async function signInWithBackend(email, name) {
             try {
-                const response = await fetch(`${API_URL}/auth/google`, {
+                const response = await fetch(`${API_URL}/auth/simple`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ token: googleToken }),
+                    body: JSON.stringify({ email, name }),
                 });
 
                 const data = await response.json();
@@ -881,14 +885,14 @@ Example: I went for a 30-minute walk and had breakfast."
                     
                     showApp();
                     
-                    if (subscription.is_trial) {
+                    if (subscription && subscription.is_trial) {
                         alert(`🎉 Welcome to Voice Log!\n\nYour 7-day free trial has started!\nTrial ends in ${subscription.trial_days_left} days.`);
                     }
                     
                     await loadData();
                     await requestNotificationPermission();
                 } else {
-                    alert('Failed to sign in');
+                    alert('Failed to sign in: ' + (data.detail || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Sign in error:', error);

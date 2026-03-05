@@ -442,6 +442,71 @@ async def google_sign_in(signin: dict, db: Session = Depends(get_db)):
         }
     }
 
+@app.post("/auth/simple")
+async def simple_sign_in(signin: dict, db: Session = Depends(get_db)):
+    """
+    Simple email-based sign in (no password for MVP)
+    Creates account if doesn't exist
+    """
+    email = signin.get("email", "").strip()
+    name = signin.get("name", "").strip()
+    
+    if not email or not name:
+        raise HTTPException(status_code=400, detail="Email and name required")
+    
+    # Check if user exists
+    user = get_user_by_email(db, email)
+    
+    if not user:
+        # New user - create account with 7-day trial
+        user_id = f"user_{uuid.uuid4().hex[:8]}"
+        user = create_user(db, user_id, email, name, google_id=None)
+        
+        # Create subscription with trial
+        trial_end = datetime.utcnow() + timedelta(days=7)
+        subscription = Subscription(
+            id=f"sub_{user_id}",
+            user_id=user_id,
+            status="trial",
+            tier="trial",
+            trial_start=datetime.utcnow(),
+            trial_end=trial_end
+        )
+        db.add(subscription)
+        db.commit()
+        
+        is_new_user = True
+    else:
+        is_new_user = False
+    
+    # Create access token
+    access_token = create_access_token(user.id)
+    
+    # Get subscription info
+    subscription = db.query(Subscription).filter(
+        Subscription.user_id == user.id
+    ).first()
+    
+    if subscription:
+        trial_status = check_trial_status(subscription)
+    else:
+        trial_status = {"is_trial": False, "trial_expired": False, "days_left": 0}
+    
+    return {
+        "access_token": access_token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name
+        },
+        "subscription": {
+            "status": subscription.status if subscription else "none",
+            "tier": subscription.tier if subscription else "none",
+            "trial_days_left": trial_status["days_left"],
+            "is_trial": trial_status["is_trial"]
+        },
+        "is_new_user": is_new_user
+    }
 # ============================================================================
 # ENDPOINTS - LOGS
 # ============================================================================
