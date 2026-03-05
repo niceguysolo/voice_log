@@ -82,72 +82,7 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@voicelog.app")
 
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-# ============================================================================
-# DATABASE MODELS
-# ============================================================================
 
-class VoiceLog(Base):
-    """Voice/text activity logs"""
-    __tablename__ = "voice_logs"
-    
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"))
-    transcription = Column(String, nullable=False)
-    timestamp = Column(DateTime, nullable=False)
-    category = Column(String, default="general")
-    input_type = Column(String, default="voice")  # voice or text
-    audio_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    user = relationship("User", back_populates="logs")
-
-class FamilyMember(Base):
-    """Family member for alerts"""
-    __tablename__ = "family_members"
-    
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"))
-    email = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    relationship_type = Column(String)  # daughter, son, spouse, etc.
-    alert_enabled = Column(Boolean, default=True)
-    alert_frequency = Column(String, default="realtime")  # realtime, daily, weekly
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    user = relationship("User", back_populates="family_member")
-
-class Subscription(Base):
-    """User subscription and trial tracking"""
-    __tablename__ = "subscriptions"
-    
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), unique=True)
-    status = Column(String, default="trial")  # trial, active, canceled, expired
-    tier = Column(String, default="free")  # free, care, family_care
-    
-    # Trial tracking
-    trial_start = Column(DateTime, default=datetime.utcnow)
-    trial_end = Column(DateTime)
-    
-    # Subscription tracking
-    stripe_customer_id = Column(String)
-    stripe_subscription_id = Column(String)
-    current_period_end = Column(DateTime)
-    
-    # Usage limits (for free tier after trial)
-    logs_this_month = Column(Integer, default=0)
-    questions_today = Column(Integer, default=0)
-    last_reset = Column(DateTime, default=datetime.utcnow)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    user = relationship("User", back_populates="subscription")
-
-# Add relationships to User model
-User.logs = relationship("VoiceLog", back_populates="user")
-User.family_member = relationship("FamilyMember", back_populates="user", uselist=False)
-User.subscription = relationship("Subscription", back_populates="user", uselist=False)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
