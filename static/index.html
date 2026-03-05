@@ -602,6 +602,36 @@
         .enable-notifications-button:hover {
             background: #e0a800;
         }
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #4CAF50;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 16px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(100px);
+            transition: all 0.3s ease;
+            z-index: 10000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.error {
+            background: #FF3B30;
+        }
+
+        .toast.success {
+            background: #34C759;
+        }
     </style>
 </head>
 <body>
@@ -1132,40 +1162,62 @@ Example: I went for a 30-minute walk and had breakfast."
             document.getElementById('modalFamilyRelationship').value = '';
         }
 
+
         async function addFamilyMember() {
-            const name = document.getElementById('modalFamilyName').value.trim();
-            const email = document.getElementById('modalFamilyEmail').value.trim();
-            const relationship = document.getElementById('modalFamilyRelationship').value.trim();
+    const name = document.getElementById('modalFamilyName').value.trim();
+    const email = document.getElementById('modalFamilyEmail').value.trim();
+    const relationship = document.getElementById('modalFamilyRelationship').value.trim();
 
-            if (!name || !email || !relationship) {
-                alert('Please fill in all fields');
-                return;
-            }
+    if (!name || !email || !relationship) {
+        showToast('Please fill in all fields', 'error');
+        return;
+    }
 
-            try {
-                const response = await fetch(`${API_URL}/family-member`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ name, email, relationship_type: relationship }),
-                });
+    // Disable button to prevent double-click
+    const addButton = event.target;
+    addButton.disabled = true;
+    addButton.textContent = 'Adding...';
 
-                if (response.ok) {
-                    alert('Family member added! They\'ll receive push notifications when you log activities.');
-                    closeAddFamilyModal();
-                    await loadFamilyMember();
-                } else {
-                    const error = await response.json();
-                    alert(error.detail || 'Failed to add family member');
-                }
-            } catch (error) {
-                console.error('Error adding family member:', error);
-                alert('Network error');
-            }
+    try {
+        const response = await fetch(`${API_URL}/family-member`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name: name, 
+                email: email, 
+                relationship_type: relationship 
+            }),
+        });
+
+        if (response.ok) {
+            // Close modal
+            closeAddFamilyModal();
+            
+            // Show success
+            showToast(`✅ ${name} added as family member!`);
+            
+            // Reload
+            loadFamilyMember();
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to add family member', 'error');
+            
+            // Re-enable button
+            addButton.disabled = false;
+            addButton.textContent = 'Add';
         }
-
+    } catch (error) {
+        console.error('Error adding family member:', error);
+        showToast('Network error. Please try again.', 'error');
+        
+        // Re-enable button
+        addButton.disabled = false;
+        addButton.textContent = 'Add';
+    }
+}
         async function removeFamilyMember() {
             if (!confirm('Are you sure you want to remove this family member? They will no longer receive notifications.')) {
                 return;
@@ -1520,6 +1572,33 @@ Example: I went for a 30-minute walk and had breakfast."
                 alert('Network error');
             }
         }
+            function showToast(message, type = 'success') {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        if (type === 'error') {
+            toast.classList.add('error');
+        }
+        toast.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(toast);
+        
+        // Show with animation
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
     </script>
 </body>
 </html>
