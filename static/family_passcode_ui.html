@@ -1,0 +1,270 @@
+<!-- Replace the Add Family Member Modal in your HTML -->
+
+<!-- Add Family Member Modal -->
+<div id="addFamilyModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Add Family Member</h2>
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyName" 
+            placeholder="Name"
+        />
+        
+        <input 
+            type="email" 
+            class="modal-input" 
+            id="modalFamilyEmail" 
+            placeholder="Email"
+        />
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyRelationship" 
+            placeholder="Relationship (e.g., daughter, son)"
+        />
+        
+        <!-- NEW: Passcode field -->
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyPasscode" 
+            placeholder="4-digit passcode (e.g., 1234)"
+            maxlength="4"
+            pattern="[0-9]{4}"
+        />
+        
+        <p style="color: #666; font-size: 14px; text-align: center; margin: 16px 0;">
+            They'll use this passcode to login and view your activities.
+        </p>
+        
+        <div class="modal-buttons">
+            <button class="modal-button cancel" onclick="closeAddFamilyModal()">
+                Cancel
+            </button>
+            
+            <button class="modal-button submit" onclick="addFamilyMember()">
+                Add
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Also add Family Member Login option to sign-in screen -->
+
+<!-- Update the sign-in screen to include family member login -->
+<div id="signInScreen" class="sign-in-container">
+    <div class="logo">🎤</div>
+    <h1 class="title">Voice Log</h1>
+    <p class="subtitle">Your Daily Memory Assistant</p>
+    
+    <!-- Regular Sign In -->
+    <button class="sign-in-button" onclick="signInWithGoogle()">
+        Sign in with Email
+    </button>
+    
+    <div class="trial-badge">
+        🎉 7-Day Free Trial • No Credit Card Required
+    </div>
+    
+    <!-- NEW: Family Member Login -->
+    <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
+        <p style="color: #666; font-size: 18px; margin-bottom: 20px;">
+            Family Member?
+        </p>
+        <button 
+            class="sign-in-button" 
+            style="background: #FF9800;"
+            onclick="showFamilyLoginModal()">
+            Login as Family Member
+        </button>
+    </div>
+    
+    <p style="color: #999; margin-top: 20px;">
+        Voice & text logging for tracking daily activities
+    </p>
+</div>
+
+
+<!-- Family Member Login Modal -->
+<div id="familyLoginModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Family Member Login</h2>
+        
+        <p style="color: #666; text-align: center; margin-bottom: 20px;">
+            Enter the email and passcode you received
+        </p>
+        
+        <input 
+            type="email" 
+            class="modal-input" 
+            id="familyLoginEmail" 
+            placeholder="Your email address"
+        />
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="familyLoginPasscode" 
+            placeholder="4-digit passcode"
+            maxlength="4"
+            pattern="[0-9]{4}"
+        />
+        
+        <div class="modal-buttons">
+            <button class="modal-button cancel" onclick="closeFamilyLoginModal()">
+                Cancel
+            </button>
+            
+            <button class="modal-button submit" onclick="familyMemberLogin()">
+                Login
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// Update addFamilyMember function to include passcode
+async function addFamilyMember() {
+    const name = document.getElementById('modalFamilyName').value.trim();
+    const email = document.getElementById('modalFamilyEmail').value.trim();
+    const relationship = document.getElementById('modalFamilyRelationship').value.trim();
+    const passcode = document.getElementById('modalFamilyPasscode').value.trim();
+
+    if (!name || !email || !relationship || !passcode) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    // Validate passcode (4 digits)
+    if (!/^\d{4}$/.test(passcode)) {
+        alert('Passcode must be exactly 4 digits');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/family-member`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name: name, 
+                email: email, 
+                relationship_type: relationship,
+                passcode: passcode
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Close modal
+            closeAddFamilyModal();
+            
+            // Show success with passcode reminder
+            alert(`✅ Family member added!\n\nShare this information with ${name}:\n\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login and view your activities.`);
+            
+            // Reload family member data
+            await loadFamilyMember();
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Failed to add family member');
+        }
+    } catch (error) {
+        console.error('Error adding family member:', error);
+        alert('Network error: ' + error.message);
+    }
+}
+
+function closeAddFamilyModal() {
+    document.getElementById('addFamilyModal').classList.remove('show');
+    document.getElementById('modalFamilyName').value = '';
+    document.getElementById('modalFamilyEmail').value = '';
+    document.getElementById('modalFamilyRelationship').value = '';
+    document.getElementById('modalFamilyPasscode').value = '';
+}
+
+// Family Member Login Functions
+function showFamilyLoginModal() {
+    document.getElementById('familyLoginModal').classList.add('show');
+}
+
+function closeFamilyLoginModal() {
+    document.getElementById('familyLoginModal').classList.remove('show');
+    document.getElementById('familyLoginEmail').value = '';
+    document.getElementById('familyLoginPasscode').value = '';
+}
+
+async function familyMemberLogin() {
+    const email = document.getElementById('familyLoginEmail').value.trim();
+    const passcode = document.getElementById('familyLoginPasscode').value.trim();
+
+    if (!email || !passcode) {
+        alert('Please enter both email and passcode');
+        return;
+    }
+
+    if (!/^\d{4}$/.test(passcode)) {
+        alert('Passcode must be 4 digits');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/auth/family-login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                email: email, 
+                passcode: passcode
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Save access token
+            accessToken = data.access_token;
+            user = data.user;
+            
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            // Close modal
+            closeFamilyLoginModal();
+            
+            // Show app
+            showApp();
+            
+            // Show welcome message
+            alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
+            
+            // Load data - as a family member, they'll see the monitoring dashboard
+            await loadData();
+            
+            // Automatically load the person they're monitoring
+            if (data.monitoring && data.monitoring.user_id) {
+                await viewUserLogs(
+                    data.monitoring.user_id, 
+                    data.monitoring.user_name, 
+                    data.monitoring.relationship
+                );
+            }
+            
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Invalid email or passcode');
+        }
+    } catch (error) {
+        console.error('Family login error:', error);
+        alert('Network error. Please try again.');
+    }
+}
+</script>

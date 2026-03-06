@@ -72,6 +72,7 @@ class FamilyMember(Base):
     email = Column(String, nullable=False)
     name = Column(String, nullable=False)
     relationship_type = Column(String)  # daughter, son, spouse, etc.
+    passcode = Column(String, nullable=False)  # 4-digit passcode for login
     alert_enabled = Column(Boolean, default=True)
     alert_frequency = Column(String, default="realtime")  # realtime, daily, weekly
     created_at = Column(DateTime, default=datetime.utcnow)
