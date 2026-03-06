@@ -283,6 +283,7 @@ def drop_all_tables():
 # Auto-create tables on import (for development)
 if __name__ != "__main__":
     try:
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         print("✅ Database initialized")
     except Exception as e:
