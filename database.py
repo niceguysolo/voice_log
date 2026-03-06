@@ -287,3 +287,4 @@ if __name__ != "__main__":
         print("✅ Database initialized")
     except Exception as e:
         print(f"⚠️ Database initialization warning: {e}")
+        

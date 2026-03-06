@@ -812,45 +812,114 @@ Example: I went for a 30-minute walk and had breakfast."
     </div>
 
     <!-- Add Family Member Modal -->
-    <div id="addFamilyModal" class="modal">
-        <div class="modal-content">
-            <h2 class="modal-title">Add Family Member</h2>
+    
+<div id="addFamilyModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Add Family Member</h2>
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyName" 
+            placeholder="Name"
+        />
+        
+        <input 
+            type="email" 
+            class="modal-input" 
+            id="modalFamilyEmail" 
+            placeholder="Email"
+        />
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyRelationship" 
+            placeholder="Relationship (e.g., daughter, son)"
+        />
+        
+        <!-- NEW: Passcode field -->
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="modalFamilyPasscode" 
+            placeholder="4-digit passcode (e.g., 1234)"
+            maxlength="4"
+            pattern="[0-9]{4}"
+        />
+        
+        <p style="color: #666; font-size: 14px; text-align: center; margin: 16px 0;">
+            They'll use this passcode to login and view your activities.
+        </p>
+        
+        <div class="modal-buttons">
+            <button class="modal-button cancel" onclick="closeAddFamilyModal()">
+                Cancel
+            </button>
             
-            <input 
-                type="text" 
-                class="modal-input" 
-                id="modalFamilyName" 
-                placeholder="Name"
-            />
-            
-            <input 
-                type="email" 
-                class="modal-input" 
-                id="modalFamilyEmail" 
-                placeholder="Email"
-            />
-            
-            <input 
-                type="text" 
-                class="modal-input" 
-                id="modalFamilyRelationship" 
-                placeholder="Relationship (e.g., daughter, son)"
-            />
-            
-            <p style="color: #666; text-align: center; margin: 16px 0;">
-                They'll receive push notifications when you log activities.
-            </p>
-            
-            <div class="modal-buttons">
-                <button class="modal-button cancel" onclick="closeAddFamilyModal()">
-                    Cancel
-                </button>
-                <button class="modal-button submit" onclick="addFamilyMember()">
-                    Add
-                </button>
-            </div>
+            <button class="modal-button submit" onclick="addFamilyMember()">
+                Add
+            </button>
         </div>
     </div>
+</div>
+
+    <!-- NEW: Family Member Login -->
+    <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #eee;">
+        <p style="color: #666; font-size: 18px; margin-bottom: 20px;">
+            Family Member?
+        </p>
+        <button 
+            class="sign-in-button" 
+            style="background: #FF9800;"
+            onclick="showFamilyLoginModal()">
+            Login as Family Member
+        </button>
+    </div>
+    
+    <p style="color: #999; margin-top: 20px;">
+        Voice & text logging for tracking daily activities
+    </p>
+</div>
+
+
+<!-- Family Member Login Modal -->
+<div id="familyLoginModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Family Member Login</h2>
+        
+        <p style="color: #666; text-align: center; margin-bottom: 20px;">
+            Enter the email and passcode you received
+        </p>
+        
+        <input 
+            type="email" 
+            class="modal-input" 
+            id="familyLoginEmail" 
+            placeholder="Your email address"
+        />
+        
+        <input 
+            type="text" 
+            class="modal-input" 
+            id="familyLoginPasscode" 
+            placeholder="4-digit passcode"
+            maxlength="4"
+            pattern="[0-9]{4}"
+        />
+        
+        <div class="modal-buttons">
+            <button class="modal-button cancel" onclick="closeFamilyLoginModal()">
+                Cancel
+            </button>
+            
+            <button class="modal-button submit" onclick="familyMemberLogin()">
+                Login
+            </button>
+        </div>
+    </div>
+</div>
+
 
     <script>
         // Configuration
@@ -1163,20 +1232,23 @@ Example: I went for a 30-minute walk and had breakfast."
         }
 
 
-        async function addFamilyMember() {
+  // Update addFamilyMember function to include passcode
+async function addFamilyMember() {
     const name = document.getElementById('modalFamilyName').value.trim();
     const email = document.getElementById('modalFamilyEmail').value.trim();
     const relationship = document.getElementById('modalFamilyRelationship').value.trim();
+    const passcode = document.getElementById('modalFamilyPasscode').value.trim();
 
-    if (!name || !email || !relationship) {
-        showToast('Please fill in all fields', 'error');
+    if (!name || !email || !relationship || !passcode) {
+        alert('Please fill in all fields');
         return;
     }
 
-    // Disable button to prevent double-click
-    const addButton = event.target;
-    addButton.disabled = true;
-    addButton.textContent = 'Adding...';
+    // Validate passcode (4 digits)
+    if (!/^\d{4}$/.test(passcode)) {
+        alert('Passcode must be exactly 4 digits');
+        return;
+    }
 
     try {
         const response = await fetch(`${API_URL}/family-member`, {
@@ -1188,35 +1260,38 @@ Example: I went for a 30-minute walk and had breakfast."
             body: JSON.stringify({ 
                 name: name, 
                 email: email, 
-                relationship_type: relationship 
+                relationship_type: relationship,
+                passcode: passcode
             }),
         });
 
         if (response.ok) {
+            const data = await response.json();
+            
             // Close modal
             closeAddFamilyModal();
             
-            // Show success
-            showToast(`✅ ${name} added as family member!`);
+            // Show success with passcode reminder
+            alert(`✅ Family member added!\n\nShare this information with ${name}:\n\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login and view your activities.`);
             
-            // Reload
-            loadFamilyMember();
+            // Reload family member data
+            await loadFamilyMember();
         } else {
             const error = await response.json();
-            showToast(error.detail || 'Failed to add family member', 'error');
-            
-            // Re-enable button
-            addButton.disabled = false;
-            addButton.textContent = 'Add';
+            alert(error.detail || 'Failed to add family member');
         }
     } catch (error) {
         console.error('Error adding family member:', error);
-        showToast('Network error. Please try again.', 'error');
-        
-        // Re-enable button
-        addButton.disabled = false;
-        addButton.textContent = 'Add';
+        alert('Network error: ' + error.message);
     }
+}
+
+function closeAddFamilyModal() {
+    document.getElementById('addFamilyModal').classList.remove('show');
+    document.getElementById('modalFamilyName').value = '';
+    document.getElementById('modalFamilyEmail').value = '';
+    document.getElementById('modalFamilyRelationship').value = '';
+    document.getElementById('modalFamilyPasscode').value = '';
 }
         async function removeFamilyMember() {
             if (!confirm('Are you sure you want to remove this family member? They will no longer receive notifications.')) {
@@ -1240,6 +1315,91 @@ Example: I went for a 30-minute walk and had breakfast."
             }
         }
 
+function closeAddFamilyModal() {
+    document.getElementById('addFamilyModal').classList.remove('show');
+    document.getElementById('modalFamilyName').value = '';
+    document.getElementById('modalFamilyEmail').value = '';
+    document.getElementById('modalFamilyRelationship').value = '';
+    document.getElementById('modalFamilyPasscode').value = '';
+}
+
+// Family Member Login Functions
+function showFamilyLoginModal() {
+    document.getElementById('familyLoginModal').classList.add('show');
+}
+
+function closeFamilyLoginModal() {
+    document.getElementById('familyLoginModal').classList.remove('show');
+    document.getElementById('familyLoginEmail').value = '';
+    document.getElementById('familyLoginPasscode').value = '';
+}
+
+async function familyMemberLogin() {
+    const email = document.getElementById('familyLoginEmail').value.trim();
+    const passcode = document.getElementById('familyLoginPasscode').value.trim();
+
+    if (!email || !passcode) {
+        alert('Please enter both email and passcode');
+        return;
+    }
+
+    if (!/^\d{4}$/.test(passcode)) {
+        alert('Passcode must be 4 digits');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/auth/family-login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                email: email, 
+                passcode: passcode
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Save access token
+            accessToken = data.access_token;
+            user = data.user;
+            
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            // Close modal
+            closeFamilyLoginModal();
+            
+            // Show app
+            showApp();
+            
+            // Show welcome message
+            alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
+            
+            // Load data - as a family member, they'll see the monitoring dashboard
+            await loadData();
+            
+            // Automatically load the person they're monitoring
+            if (data.monitoring && data.monitoring.user_id) {
+                await viewUserLogs(
+                    data.monitoring.user_id, 
+                    data.monitoring.user_name, 
+                    data.monitoring.relationship
+                );
+            }
+            
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Invalid email or passcode');
+        }
+    } catch (error) {
+        console.error('Family login error:', error);
+        alert('Network error. Please try again.');
+    }
+}
         // ============================================================================
         // RECORDING
         // ============================================================================
