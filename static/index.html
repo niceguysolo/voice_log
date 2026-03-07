@@ -1051,22 +1051,28 @@ Example: I went for a 30-minute walk and had breakfast."
                 document.getElementById('notificationBanner').style.display = 'flex';
             } else if (Notification.permission === 'granted') {
                 document.getElementById('notificationBanner').style.display = 'none';
-                subscribeToNotifications();
+                //subscribeToNotifications();
             }
         }
-
         async function requestNotificationPermission() {
             if (!('Notification' in window)) {
-                alert('This browser does not support notifications');
+                console.log('Notifications not supported');
                 return;
             }
 
-            const permission = await Notification.requestPermission();
-            
-            if (permission === 'granted') {
-                document.getElementById('notificationBanner').style.display = 'none';
-                await subscribeToNotifications();
-                showNotification('Notifications Enabled', 'You\'ll now receive activity alerts from your family member!');
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    console.log('Notification permission granted');
+                    
+                    // Show test notification
+                    new Notification('Voice Log', {
+                        body: 'Notifications enabled!',
+                    });
+                }
+            } catch (error) {
+                console.error('Notification error:', error);
             }
         }
 

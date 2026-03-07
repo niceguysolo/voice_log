@@ -136,6 +136,14 @@ class FamilyMemberUpdate(BaseModel):
     alert_enabled: Optional[bool] = None
     alert_frequency: Optional[str] = None
 
+# Add Pydantic models at top
+class VoiceLogCreate(BaseModel):
+    audio: str
+    timestamp: Optional[str] = None
+
+class TextLogCreate(BaseModel):
+    text: str
+    timestamp: Optional[str] = None
 # ============================================================================
 # AUTHENTICATION
 # ============================================================================
@@ -799,6 +807,32 @@ async def ask_question_endpoint(
 # ============================================================================
 # ENDPOINTS - FAMILY MEMBER
 # ============================================================================
+@app.get("/family-member")
+async def get_family_member(
+    user_id: str = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get family member info for the current user
+    Returns the family member details (without showing passcode)
+    """
+    family_member = db.query(FamilyMember).filter(
+        FamilyMember.user_id == user_id
+    ).first()
+    
+    if not family_member:
+        return {"family_member": None}
+    
+    return {
+        "family_member": {
+            "id": family_member.id,
+            "email": family_member.email,
+            "name": family_member.name,
+            "relationship_type": family_member.relationship_type,
+            "alert_enabled": family_member.alert_enabled,
+            "alert_frequency": family_member.alert_frequency
+        }
+    }
 
 @app.post("/family-member")
 async def add_family_member(

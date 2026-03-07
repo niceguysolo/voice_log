@@ -27,21 +27,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Voice Log';
     const options = {
         body: data.body || 'New activity logged',
-        icon: '/icon-192.png',
-        badge: '/badge-72.png',
         tag: 'activity-alert',
         requireInteraction: false,
-        data: data,
-        actions: [
-            {
-                action: 'view',
-                title: 'View',
-            },
-            {
-                action: 'close',
-                title: 'Close',
-            }
-        ]
     };
     
     event.waitUntil(
