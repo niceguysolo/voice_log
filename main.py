@@ -64,6 +64,12 @@ if os.path.exists("static"):
         """Serve the web frontend"""
         return FileResponse('static/index.html')
     
+    # Serve sw.js from root (required for service workers)
+    @app.get("/sw.js")
+    async def service_worker():
+        """Serve service worker from root path"""
+        return FileResponse('static/sw.js', media_type='application/javascript')
+    
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -978,6 +984,10 @@ async def remove_family_member(
     
     return {"status": "deleted"}
 
+@app.get("/how-it-works")
+async def how_it_works():
+    """Serve the How It Works informational page"""
+    return FileResponse('static/how-it-works.html')
 
 # ============================================================================
 # ENDPOINTS - SUBSCRIPTION

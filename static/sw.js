@@ -1,5 +1,4 @@
 // Service Worker for Push Notifications
-// Save as: sw.js (place in root of web app)
 
 self.addEventListener('install', (event) => {
     console.log('Service Worker installing...');
