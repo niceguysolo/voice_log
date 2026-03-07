@@ -1231,9 +1231,7 @@ Example: I went for a 30-minute walk and had breakfast."
             document.getElementById('modalFamilyRelationship').value = '';
         }
 
-
-  // Update addFamilyMember function to include passcode
-async function addFamilyMember() {
+        async function addFamilyMember() {
     const name = document.getElementById('modalFamilyName').value.trim();
     const email = document.getElementById('modalFamilyEmail').value.trim();
     const relationship = document.getElementById('modalFamilyRelationship').value.trim();
@@ -1268,23 +1266,33 @@ async function addFamilyMember() {
         if (response.ok) {
             const data = await response.json();
             
-            // Close modal
             closeAddFamilyModal();
             
-            // Show success with passcode reminder
-            alert(`✅ Family member added!\n\nShare this information with ${name}:\n\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login and view your activities.`);
+            // Show passcode in confirmation
+            alert(`✅ Family member added!\n\nShare with ${name}:\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login.`);
             
-            // Reload family member data
             await loadFamilyMember();
         } else {
-            const error = await response.json();
-            alert(error.detail || 'Failed to add family member');
+            // Handle error response
+            let errorMessage = 'Failed to add family member';
+            
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch (e) {
+                // If response is not JSON (like HTML error page)
+                errorMessage = `Server error (${response.status}). Please try again.`;
+            }
+            
+            alert(errorMessage);
         }
     } catch (error) {
         console.error('Error adding family member:', error);
-        alert('Network error: ' + error.message);
+        alert('Network error. Please check your connection and try again.');
     }
 }
+
+  // Update addFamilyMember function to include passcode
 
 function closeAddFamilyModal() {
     document.getElementById('addFamilyModal').classList.remove('show');

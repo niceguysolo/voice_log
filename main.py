@@ -820,10 +820,9 @@ async def add_family_member(
             detail="You already have a family member added. Please remove them first to add a new one."
         )
     
-    # Hash the passcode before storing (for security)
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    hashed_passcode = pwd_context.hash(family.passcode)
+    # Simple hash for passcode (SHA256)
+    import hashlib
+    hashed_passcode = hashlib.sha256(family.passcode.encode()).hexdigest()
     
     # Create family member
     family_id = f"family_{uuid.uuid4().hex[:8]}"
@@ -865,8 +864,10 @@ async def family_member_login(
     Family member login with email and passcode
     Returns access token and info about who they're monitoring
     """
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    import hashlib
+    
+    # Hash the provided passcode
+    hashed_passcode = hashlib.sha256(login.passcode.encode()).hexdigest()
     
     # Find family member by email
     family_member = db.query(FamilyMember).filter(
@@ -880,7 +881,7 @@ async def family_member_login(
         )
     
     # Verify passcode
-    if not pwd_context.verify(login.passcode, family_member.passcode):
+    if family_member.passcode != hashed_passcode:
         raise HTTPException(
             status_code=401,
             detail="Invalid email or passcode"
@@ -929,30 +930,6 @@ async def family_member_login(
     }
 
 
-@app.get("/family-member")
-async def get_family_member(
-    user_id: str = Depends(verify_token),
-    db: Session = Depends(get_db)
-):
-    """Get family member info (without showing passcode)"""
-    family_member = db.query(FamilyMember).filter(
-        FamilyMember.user_id == user_id
-    ).first()
-    
-    if not family_member:
-        return {"family_member": None}
-    
-    return {
-        "family_member": {
-            "id": family_member.id,
-            "email": family_member.email,
-            "name": family_member.name,
-            "relationship_type": family_member.relationship_type,
-            "alert_enabled": family_member.alert_enabled,
-            "alert_frequency": family_member.alert_frequency,
-            "has_passcode": True  # Don't show actual passcode
-        }
-    }
 
 
 @app.put("/family-member")
