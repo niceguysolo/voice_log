@@ -656,7 +656,7 @@
         <!-- Add this in sign-in screen, before closing tag -->
             <div style="margin-top: 30px;">
                 <a href="/how-it-works" 
-                style="color: white; font-size: 18px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); padding: 12px 24px; border-radius: 12px;">
+                style="color: rgb(255, 255, 255); font-size: 18px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); padding: 12px 24px; border-radius: 12px;">
                     ℹ️ How It Works
                 </a>
             </div>
@@ -1121,8 +1121,6 @@ Example: I went for a 30-minute walk and had breakfast."
             if (Notification.permission === 'granted') {
                 new Notification(title, {
                     body: body,
-                    icon: '/icon.png', // Add your icon
-                    badge: '/badge.png', // Add your badge
                     tag: 'activity-alert',
                     requireInteraction: false
                 });
