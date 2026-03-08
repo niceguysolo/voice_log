@@ -761,42 +761,177 @@
                 </div>
 
                 <!-- Record Activity -->
-                <div class="record-section">
-                    <h2 class="section-title">Record Activity</h2>
-                    
-                    <div class="mode-toggle">
-                        <button class="mode-button active" id="voiceModeBtn" onclick="setRecordMode('voice')">
-                            🎤 Voice
-                        </button>
-                        <button class="mode-button" id="textModeBtn" onclick="setRecordMode('text')">
-                            ⌨️ Text
-                        </button>
-                    </div>
+<!-- Replace your recording section in index.html with this new design -->
 
-                    <!-- Voice Mode -->
-                    <div id="voiceMode">
-                        <button class="record-button" id="recordButton" onclick="toggleRecording()">
-                            🎤 RECORD
-                        </button>
-                        <div class="record-subtext">Tap to record activity</div>
-                    </div>
+<!-- NEW: Main Action Buttons (shown by default) -->
+<div id="mainActions" style="display: block; margin-bottom: 30px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <button 
+            onclick="showRecordOptions()" 
+            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 40px 20px; border-radius: 16px; font-size: 24px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3); transition: all 0.2s;"
+            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 32px rgba(102, 126, 234, 0.4)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 24px rgba(102, 126, 234, 0.3)'">
+            🎤 Record
+        </button>
+        
+        <button 
+            onclick="showAskSection()" 
+            style="background: linear-gradient(135deg, #FF9800 0%, #FF5722 100%); color: white; border: none; padding: 40px 20px; border-radius: 16px; font-size: 24px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(255, 152, 0, 0.3); transition: all 0.2s;"
+            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 32px rgba(255, 152, 0, 0.4)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 24px rgba(255, 152, 0, 0.3)'">
+            ❓ Ask
+        </button>
+    </div>
+</div>
 
-                    <!-- Text Mode -->
-                    <div id="textMode" style="display: none;">
-                        <textarea 
-                            class="text-input" 
-                            id="activityText" 
-                            placeholder="Type what you did today...
 
-Example: I went for a 30-minute walk and had breakfast."
-                        ></textarea>
-                        <button class="submit-button" onclick="submitTextActivity()">
-                            📝 Save Activity
-                        </button>
-                    </div>
+<!-- STEP 2: Record Options (Voice or Text) - Hidden by default -->
+<div id="recordOptions" style="display: none; margin-bottom: 30px;">
+    <div style="background: #f8f9ff; border-radius: 16px; padding: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #667eea; font-size: 22px;">Choose Input Method</h3>
+            <button 
+                onclick="backToMainActions()" 
+                style="background: transparent; border: 2px solid #667eea; color: #667eea; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                ← Back
+            </button>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <button 
+                onclick="showVoiceRecording()" 
+                style="background: #667eea; color: white; border: none; padding: 30px 20px; border-radius: 12px; font-size: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                onmouseover="this.style.background='#5568d3'"
+                onmouseout="this.style.background='#667eea'">
+                🎤 Voice
+            </button>
+            
+            <button 
+                onclick="showTextInput()" 
+                style="background: #4CAF50; color: white; border: none; padding: 30px 20px; border-radius: 12px; font-size: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                onmouseover="this.style.background='#45a049'"
+                onmouseout="this.style.background='#4CAF50'">
+                ⌨️ Text
+            </button>
+        </div>
+    </div>
+</div>
 
-                    <div id="processingSpinner" class="spinner" style="display: none;"></div>
-                </div>
+
+<!-- STEP 3a: Voice Recording Interface - Hidden by default -->
+<div id="voiceRecordingInterface" style="display: none; margin-bottom: 30px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 30px; color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; font-size: 22px;">🎤 Voice Recording</h3>
+            <button 
+                onclick="backToRecordOptions()" 
+                style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                ← Back
+            </button>
+        </div>
+        
+        <div style="text-align: center; padding: 40px 20px;">
+            <!-- Recording Status -->
+            <div id="recordingStatus" style="font-size: 18px; margin-bottom: 20px; min-height: 30px;">
+                Press the button to start recording
+            </div>
+            
+            <!-- Record Button -->
+            <button 
+                id="voiceRecordButton"
+                onclick="toggleVoiceRecording()" 
+                style="background: white; color: #667eea; border: none; width: 120px; height: 120px; border-radius: 50%; font-size: 48px; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.3); transition: all 0.2s;"
+                onmouseover="if(!isRecording) this.style.transform='scale(1.1)'"
+                onmouseout="this.style.transform='scale(1)'">
+                🎤
+            </button>
+            
+            <p style="margin-top: 20px; font-size: 16px; opacity: 0.9;">
+                Tap to start recording, tap again to stop
+            </p>
+        </div>
+    </div>
+</div>
+
+
+<!-- STEP 3b: Text Input Interface - Hidden by default -->
+<div id="textInputInterface" style="display: none; margin-bottom: 30px;">
+    <div style="background: #f0f9f1; border-radius: 16px; padding: 30px; border: 2px solid #4CAF50;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #4CAF50; font-size: 22px;">⌨️ Text Input</h3>
+            <button 
+                onclick="backToRecordOptions()" 
+                style="background: transparent; border: 2px solid #4CAF50; color: #4CAF50; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                ← Back
+            </button>
+        </div>
+        
+        <textarea 
+            id="textLogInput"
+            placeholder="Type your activity here... (e.g., 'Took my blood pressure pill' or 'Had breakfast at 9am')"
+            style="width: 100%; min-height: 120px; padding: 16px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; font-family: inherit; resize: vertical;"
+            onkeypress="if(event.key==='Enter' && event.ctrlKey) submitTextLog()"></textarea>
+        
+        <div style="margin-top: 15px; text-align: right;">
+            <button 
+                onclick="submitTextLog()" 
+                style="background: #4CAF50; color: white; border: none; padding: 14px 32px; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);">
+                Submit
+            </button>
+        </div>
+        
+        <p style="margin-top: 15px; color: #666; font-size: 14px; text-align: center;">
+            💡 Tip: Press Ctrl+Enter to submit quickly
+        </p>
+    </div>
+</div>
+
+
+<!-- Ask Question Section - Hidden by default, shows when Ask button clicked -->
+<div id="askQuestionInterface" style="display: none; margin-bottom: 30px;">
+    <div style="background: linear-gradient(135deg, #FF9800 0%, #FF5722 100%); border-radius: 16px; padding: 30px; color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; font-size: 22px;">❓ Ask a Question</h3>
+            <button 
+                onclick="backToMainActions()" 
+                style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                ← Back
+            </button>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <input 
+                type="text" 
+                id="questionInput"
+                placeholder="Ask about your activities... (e.g., 'Did I take my medication today?')"
+                style="width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px;"
+                onkeypress="if(event.key==='Enter') submitQuestion()">
+            
+            <button 
+                onclick="submitQuestion()" 
+                style="width: 100%; margin-top: 15px; background: white; color: #FF9800; border: none; padding: 14px; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer;">
+                Get Answer
+            </button>
+        </div>
+        
+        <!-- Quick Question Buttons -->
+        <div style="margin-bottom: 20px;">
+            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">Quick questions:</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button onclick="askQuickQuestion('Did I take my medication today?')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px;">💊 Medication today?</button>
+                <button onclick="askQuickQuestion('What did I eat today?')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px;">🍽️ What did I eat?</button>
+                <button onclick="askQuickQuestion('Did I exercise this week?')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px;">🏃 Exercise this week?</button>
+                <button onclick="askQuickQuestion('When was my last doctor visit?')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px;">🏥 Last doctor visit?</button>
+            </div>
+        </div>
+        
+        <!-- Answer Display -->
+        <div id="answerDisplay" style="display: none; background: white; color: #333; border-radius: 12px; padding: 20px; margin-top: 20px;">
+            <div id="answerText" style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;"></div>
+            <audio id="answerAudio" controls style="width: 100%; display: none;"></audio>
+        </div>
+    </div>
+</div>
 
                 <!-- Ask Questions -->
                 <div class="questions-section">
@@ -1378,6 +1513,266 @@ Example: I went for a 30-minute walk and had breakfast."
         alert('Network error. Please check your connection and try again.');
     }
 }
+// ============================================================================
+// UI NAVIGATION FUNCTIONS
+// ============================================================================
+
+function showRecordOptions() {
+    document.getElementById('mainActions').style.display = 'none';
+    document.getElementById('recordOptions').style.display = 'block';
+}
+
+function showAskSection() {
+    document.getElementById('mainActions').style.display = 'none';
+    document.getElementById('askQuestionInterface').style.display = 'block';
+}
+
+function backToMainActions() {
+    // Hide all sections
+    document.getElementById('recordOptions').style.display = 'none';
+    document.getElementById('voiceRecordingInterface').style.display = 'none';
+    document.getElementById('textInputInterface').style.display = 'none';
+    document.getElementById('askQuestionInterface').style.display = 'none';
+    
+    // Show main actions
+    document.getElementById('mainActions').style.display = 'block';
+    
+    // Clear inputs
+    document.getElementById('textLogInput').value = '';
+    document.getElementById('questionInput').value = '';
+    document.getElementById('answerDisplay').style.display = 'none';
+}
+
+function backToRecordOptions() {
+    // Hide recording/text interfaces
+    document.getElementById('voiceRecordingInterface').style.display = 'none';
+    document.getElementById('textInputInterface').style.display = 'none';
+    
+    // Show record options
+    document.getElementById('recordOptions').style.display = 'block';
+    
+    // Clear text input
+    document.getElementById('textLogInput').value = '';
+}
+
+function showVoiceRecording() {
+    document.getElementById('recordOptions').style.display = 'none';
+    document.getElementById('voiceRecordingInterface').style.display = 'block';
+}
+
+function showTextInput() {
+    document.getElementById('recordOptions').style.display = 'none';
+    document.getElementById('textInputInterface').style.display = 'block';
+}
+
+
+// ============================================================================
+// VOICE RECORDING FUNCTIONS
+// ============================================================================
+
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+
+async function toggleVoiceRecording() {
+    if (!isRecording) {
+        await startRecording();
+    } else {
+        stopRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            await processVoiceRecording(audioBlob);
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        // Update UI
+        document.getElementById('voiceRecordButton').style.background = '#ff3b30';
+        document.getElementById('voiceRecordButton').textContent = '⏹️';
+        document.getElementById('recordingStatus').textContent = '🔴 Recording... Tap to stop';
+        
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        alert('Could not access microphone. Please check permissions.');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        isRecording = false;
+        
+        // Update UI
+        document.getElementById('voiceRecordButton').style.background = 'white';
+        document.getElementById('voiceRecordButton').textContent = '🎤';
+        document.getElementById('recordingStatus').textContent = '⏳ Processing...';
+    }
+}
+
+async function processVoiceRecording(audioBlob) {
+    try {
+        // Convert to base64
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        
+        reader.onloadend = async () => {
+            const base64Audio = reader.result.split(',')[1];
+            
+            // Send to backend
+            const response = await fetch(`${API_URL}/logs`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    audio: base64Audio,
+                    timestamp: new Date().toISOString()
+                }),
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('recordingStatus').innerHTML = `✅ Saved: "${data.transcription}"`;
+                
+                // Reload logs after 2 seconds, then go back
+                setTimeout(() => {
+                    loadRecentLogs();
+                    backToMainActions();
+                }, 2000);
+            } else {
+                const error = await response.json();
+                document.getElementById('recordingStatus').textContent = '❌ Error: ' + (error.detail || 'Failed to save');
+            }
+        };
+        
+    } catch (error) {
+        console.error('Error processing recording:', error);
+        document.getElementById('recordingStatus').textContent = '❌ Error processing audio';
+    }
+}
+
+
+// ============================================================================
+// TEXT LOG FUNCTIONS
+// ============================================================================
+
+async function submitTextLog() {
+    const text = document.getElementById('textLogInput').value.trim();
+    
+    if (!text) {
+        alert('Please enter some text');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/logs/text`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                timestamp: new Date().toISOString()
+            }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert(`✅ Activity logged: "${data.transcription}"`);
+            
+            // Clear and go back
+            document.getElementById('textLogInput').value = '';
+            loadRecentLogs();
+            backToMainActions();
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.detail || 'Failed to save'));
+        }
+        
+    } catch (error) {
+        console.error('Error submitting text log:', error);
+        alert('Network error. Please try again.');
+    }
+}
+
+
+// ============================================================================
+// ASK QUESTION FUNCTIONS
+// ============================================================================
+
+async function submitQuestion() {
+    const question = document.getElementById('questionInput').value.trim();
+    
+    if (!question) {
+        alert('Please enter a question');
+        return;
+    }
+    
+    await askQuestion(question);
+}
+
+async function askQuickQuestion(question) {
+    document.getElementById('questionInput').value = question;
+    await askQuestion(question);
+}
+
+async function askQuestion(question) {
+    try {
+        // Show loading
+        document.getElementById('answerDisplay').style.display = 'block';
+        document.getElementById('answerText').innerHTML = '⏳ Thinking...';
+        
+        const response = await fetch(`${API_URL}/ask`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Show answer
+            document.getElementById('answerText').innerHTML = data.answer;
+            
+            // Show audio if available
+            if (data.audio_url) {
+                const audioElement = document.getElementById('answerAudio');
+                audioElement.src = API_URL + data.audio_url;
+                audioElement.style.display = 'block';
+                audioElement.play();
+            }
+            
+        } else {
+            const error = await response.json();
+            document.getElementById('answerText').innerHTML = '❌ Error: ' + (error.detail || 'Failed to get answer');
+        }
+        
+    } catch (error) {
+        console.error('Error asking question:', error);
+        document.getElementById('answerText').innerHTML = '❌ Network error. Please try again.';
+    }
+}
+
 
   // Update addFamilyMember function to include passcode
 
@@ -1539,80 +1934,33 @@ function getCategoryEmoji(category) {
 }
 
 function hideControlsForFamilyMember() {
-    // Hide recording section
-    const recordSection = document.getElementById('recordSection');
-    if (recordSection) {
-        recordSection.style.display = 'none';
-    }
+    // Hide main action buttons
+    const mainActions = document.getElementById('mainActions');
+    if (mainActions) mainActions.style.display = 'none';
     
-    // Hide voice input area
-    const voiceInput = document.getElementById('voiceInputArea');
-    if (voiceInput) {
-        voiceInput.style.display = 'none';
-    }
-    
-    // Hide text input area
-    const textInput = document.getElementById('textInputArea');
-    if (textInput) {
-        textInput.style.display = 'none';
-    }
-    
-    // Hide ask question section
-    const questionSection = document.getElementById('questionSection');
-    if (questionSection) {
-        questionSection.style.display = 'none';
-    }
-    
-    // Hide family member card
+    // Hide family card
     const familyCard = document.getElementById('familyCard');
-    if (familyCard) {
-        familyCard.style.display = 'none';
-    }
+    if (familyCard) familyCard.style.display = 'none';
     
     // Hide subscription card
     const subscriptionCard = document.getElementById('subscriptionCard');
-    if (subscriptionCard) {
-        subscriptionCard.style.display = 'none';
-    }
+    if (subscriptionCard) subscriptionCard.style.display = 'none';
 }
 
 function showControlsForOwnAccount() {
-    // Show recording section
-    const recordSection = document.getElementById('recordSection');
-    if (recordSection) {
-        recordSection.style.display = 'block';
-    }
-    
-    // Show voice input
-    const voiceInput = document.getElementById('voiceInputArea');
-    if (voiceInput) {
-        voiceInput.style.display = 'block';
-    }
-    
-    // Show text input
-    const textInput = document.getElementById('textInputArea');
-    if (textInput) {
-        textInput.style.display = 'block';
-    }
-    
-    // Show question section
-    const questionSection = document.getElementById('questionSection');
-    if (questionSection) {
-        questionSection.style.display = 'block';
-    }
+    // Show main action buttons
+    const mainActions = document.getElementById('mainActions');
+    if (mainActions) mainActions.style.display = 'block';
     
     // Show family card
     const familyCard = document.getElementById('familyCard');
-    if (familyCard) {
-        familyCard.style.display = 'block';
-    }
+    if (familyCard) familyCard.style.display = 'block';
     
     // Show subscription card
     const subscriptionCard = document.getElementById('subscriptionCard');
-    if (subscriptionCard) {
-        subscriptionCard.style.display = 'block';
-    }
+    if (subscriptionCard) subscriptionCard.style.display = 'block';
 }
+
 
 async function familyMemberLogin() {
     const email = document.getElementById('familyLoginEmail').value.trim();
