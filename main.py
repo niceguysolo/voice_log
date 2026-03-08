@@ -1023,6 +1023,60 @@ async def how_it_works():
     """Serve the How It Works informational page"""
     return FileResponse('static/how-it-works.html')
 
+@app.get("/family/logs/{user_id}")
+async def get_family_member_logs(
+    user_id: str,
+    days: int = 7,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Family members can view logs of the user who added them
+    """
+    # Verify family member token
+    family_member_user_id = verify_token(authorization)
+    family_member_user = get_user_by_id(db, family_member_user_id)
+    
+    if not family_member_user:
+        raise HTTPException(status_code=404, detail="Family member not found")
+    
+    # Check if this family member is authorized to view this user's logs
+    family_relationship = db.query(FamilyMember).filter(
+        FamilyMember.email == family_member_user.email,
+        FamilyMember.user_id == user_id
+    ).first()
+    
+    if not family_relationship:
+        raise HTTPException(
+            status_code=403, 
+            detail="You are not authorized to view this user's logs"
+        )
+    
+    # Get the primary user
+    primary_user = get_user_by_id(db, user_id)
+    if not primary_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get logs
+    logs = get_user_logs(db, user_id, days=days, limit=100)
+    
+    return {
+        "user": {
+            "id": primary_user.id,
+            "name": primary_user.name,
+            "relationship": family_relationship.relationship_type
+        },
+        "logs": [
+            {
+                "id": log.id,
+                "transcription": log.transcription,
+                "timestamp": log.timestamp.isoformat(),
+                "category": log.category,
+                "input_type": log.input_type
+            }
+            for log in logs
+        ]
+    }
 # ============================================================================
 # ENDPOINTS - SUBSCRIPTION
 # ============================================================================

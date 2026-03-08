@@ -1352,7 +1352,110 @@ function closeFamilyLoginModal() {
     document.getElementById('familyLoginEmail').value = '';
     document.getElementById('familyLoginPasscode').value = '';
 }
+// ============================================================================
+// FAMILY MEMBER VIEWING FUNCTIONS
+// ============================================================================
 
+// Track which user is being viewed
+let viewingUserId = null;
+
+async function viewUserLogs(userId, userName, relationship) {
+    viewingUserId = userId;
+    
+    // Show family dashboard banner
+    const familyDashboard = document.getElementById('familyDashboard');
+    if (familyDashboard) {
+        familyDashboard.style.display = 'block';
+        document.getElementById('viewingUserName').textContent = userName;
+        document.getElementById('viewingRelationship').textContent = `Your ${relationship}`;
+    }
+    
+    // Hide record section (family members can only view, not record)
+    const recordSection = document.getElementById('recordSection');
+    if (recordSection) {
+        recordSection.style.display = 'none';
+    }
+    
+    // Load their logs
+    await loadFamilyMemberLogs(userId);
+}
+
+async function loadFamilyMemberLogs(userId) {
+    try {
+        const response = await fetch(`${API_URL}/family/logs/${userId}?days=30`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            alert('Failed to load activity logs');
+            return;
+        }
+
+        const data = await response.json();
+        
+        // Display logs
+        const logsList = document.getElementById('logsList');
+        
+        if (!data.logs || data.logs.length === 0) {
+            logsList.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No activities logged yet</p>';
+            return;
+        }
+
+        logsList.innerHTML = data.logs.map(log => {
+            const date = new Date(log.timestamp);
+            const badgeClass = log.input_type === 'voice' ? 'voice' : 'text';
+            const badge = log.input_type === 'voice' ? '🎤 Voice' : '⌨️ Text';
+            
+            return `
+                <div class="log-item">
+                    <div class="log-header">
+                        <span class="log-timestamp">${date.toLocaleString()}</span>
+                        <span class="log-badge ${badgeClass}">${badge}</span>
+                    </div>
+                    <div class="log-text">${log.transcription}</div>
+                    ${log.category ? `<div class="log-category">${getCategoryEmoji(log.category)} ${log.category}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading family member logs:', error);
+        alert('Network error loading logs');
+    }
+}
+
+function switchToMyAccount() {
+    viewingUserId = null;
+    
+    // Hide family dashboard
+    const familyDashboard = document.getElementById('familyDashboard');
+    if (familyDashboard) {
+        familyDashboard.style.display = 'none';
+    }
+    
+    // Show record section
+    const recordSection = document.getElementById('recordSection');
+    if (recordSection) {
+        recordSection.style.display = 'block';
+    }
+    
+    // Load my own logs
+    loadRecentLogs();
+}
+
+function getCategoryEmoji(category) {
+    const emojis = {
+        'medication': '💊',
+        'exercise': '🏃',
+        'meal': '🍽️',
+        'medical': '🏥',
+        'social': '👥',
+        'general': '📝'
+    };
+    return emojis[category] || '📝';
+}
 async function familyMemberLogin() {
     const email = document.getElementById('familyLoginEmail').value.trim();
     const passcode = document.getElementById('familyLoginPasscode').value.trim();
@@ -1398,10 +1501,10 @@ async function familyMemberLogin() {
             // Show welcome message
             alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
             
-            // Load data - as a family member, they'll see the monitoring dashboard
+            // Load data first
             await loadData();
             
-            // Automatically load the person they're monitoring
+            // Then automatically load the person they're monitoring
             if (data.monitoring && data.monitoring.user_id) {
                 await viewUserLogs(
                     data.monitoring.user_id, 
