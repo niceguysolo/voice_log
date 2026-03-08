@@ -992,15 +992,36 @@ Example: I went for a 30-minute walk and had breakfast."
         let viewingUserId = null;
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSession();
+    // ============================================================================
+    // INITIALIZATION - CHECK FOR EXISTING SESSION
+    // ============================================================================
+    
+    window.addEventListener('DOMContentLoaded', () => {
+        console.log('Page loaded, checking for saved session...');
+        
+        // Check if user was previously logged in
+        const savedToken = localStorage.getItem('accessToken');
+        const savedUser = localStorage.getItem('user');
+        
+        if (savedToken && savedUser) {
+            console.log('Found saved session, restoring...');
             
-            // Request notification permission on load if signed in
-            if (accessToken && 'Notification' in window) {
-                checkNotificationPermission();
+            accessToken = savedToken;
+            user = JSON.parse(savedUser);
+            
+            // Check if user is a family member
+            if (user.is_family_member) {
+                console.log('User is a family member, hiding controls');
+                hideControlsForFamilyMember();
             }
-        });
-
+            
+            showApp();
+            loadData();
+        } else {
+            console.log('No saved session, showing sign-in screen');
+            showSignIn();
+        }
+    });
         // ============================================================================
         // AUTHENTICATION
         // ============================================================================
@@ -1151,7 +1172,16 @@ Example: I went for a 30-minute walk and had breakfast."
                 }
             }
         }
-
+        function showSignIn() {
+            document.getElementById('signInScreen').style.display = 'block';
+            document.getElementById('appScreen').style.display = 'none';
+        }
+        
+        function showApp() {
+            document.getElementById('signInScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+        }
+ 
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -1406,56 +1436,16 @@ function closeFamilyLoginModal() {
 
 async function viewUserLogs(userId, userName, relationship) {
     viewingUserId = userId;
-    // Add class to body to enable view-only mode
-    document.body.classList.add('viewing-family-member');
+    
+    // Hide all controls (in case not already hidden)
+    hideControlsForFamilyMember();
+    
     // Show family dashboard banner
     const familyDashboard = document.getElementById('familyDashboard');
     if (familyDashboard) {
         familyDashboard.style.display = 'block';
         document.getElementById('viewingUserName').textContent = userName;
         document.getElementById('viewingRelationship').textContent = `Your ${relationship}`;
-    }
-    
-    // Hide ALL recording-related sections
-    const recordSection = document.getElementById('recordSection');
-    if (recordSection) {
-        recordSection.style.display = 'none';
-    }
-    
-    // Hide voice input area
-    const voiceInput = document.getElementById('voiceInputArea');
-    if (voiceInput) {
-        voiceInput.style.display = 'none';
-    }
-    
-    // Hide text input area
-    const textInput = document.getElementById('textInputArea');
-    if (textInput) {
-        textInput.style.display = 'none';
-    }
-    
-    // Hide ask question section
-    const questionSection = document.getElementById('questionSection');
-    if (questionSection) {
-        questionSection.style.display = 'none';
-    }
-    
-    // Hide family member card (can't add family of family)
-    const familyCard = document.getElementById('familyCard');
-    if (familyCard) {
-        familyCard.style.display = 'none';
-    }
-    
-    // Hide subscription/trial info
-    const subscriptionCard = document.getElementById('subscriptionCard');
-    if (subscriptionCard) {
-        subscriptionCard.style.display = 'none';
-    }
-    
-    // Show ONLY the logs section
-    const logsSection = document.getElementById('logsSection');
-    if (logsSection) {
-        logsSection.style.display = 'block';
     }
     
     // Update page title
@@ -1523,6 +1513,70 @@ function switchToMyAccount() {
         familyDashboard.style.display = 'none';
     }
     
+    // Show all controls
+    showControlsForOwnAccount();
+    
+    // Restore page title
+    const pageTitle = document.querySelector('.app-container h2');
+    if (pageTitle) {
+        pageTitle.textContent = 'Voice Log';
+    }
+    
+    // Load my own logs
+    loadRecentLogs();
+}
+
+function getCategoryEmoji(category) {
+    const emojis = {
+        'medication': '💊',
+        'exercise': '🏃',
+        'meal': '🍽️',
+        'medical': '🏥',
+        'social': '👥',
+        'general': '📝'
+    };
+    return emojis[category] || '📝';
+}
+
+function hideControlsForFamilyMember() {
+    // Hide recording section
+    const recordSection = document.getElementById('recordSection');
+    if (recordSection) {
+        recordSection.style.display = 'none';
+    }
+    
+    // Hide voice input area
+    const voiceInput = document.getElementById('voiceInputArea');
+    if (voiceInput) {
+        voiceInput.style.display = 'none';
+    }
+    
+    // Hide text input area
+    const textInput = document.getElementById('textInputArea');
+    if (textInput) {
+        textInput.style.display = 'none';
+    }
+    
+    // Hide ask question section
+    const questionSection = document.getElementById('questionSection');
+    if (questionSection) {
+        questionSection.style.display = 'none';
+    }
+    
+    // Hide family member card
+    const familyCard = document.getElementById('familyCard');
+    if (familyCard) {
+        familyCard.style.display = 'none';
+    }
+    
+    // Hide subscription card
+    const subscriptionCard = document.getElementById('subscriptionCard');
+    if (subscriptionCard) {
+        subscriptionCard.style.display = 'none';
+    }
+}
+
+function showControlsForOwnAccount() {
     // Show recording section
     const recordSection = document.getElementById('recordSection');
     if (recordSection) {
@@ -1558,28 +1612,8 @@ function switchToMyAccount() {
     if (subscriptionCard) {
         subscriptionCard.style.display = 'block';
     }
-    
-    // Restore page title
-    const pageTitle = document.querySelector('.app-container h2');
-    if (pageTitle) {
-        pageTitle.textContent = 'Voice Log';
-    }
-    
-    // Load my own logs
-    loadRecentLogs();
 }
 
-function getCategoryEmoji(category) {
-    const emojis = {
-        'medication': '💊',
-        'exercise': '🏃',
-        'meal': '🍽️',
-        'medical': '🏥',
-        'social': '👥',
-        'general': '📝'
-    };
-    return emojis[category] || '📝';
-}
 async function familyMemberLogin() {
     const email = document.getElementById('familyLoginEmail').value.trim();
     const passcode = document.getElementById('familyLoginPasscode').value.trim();
@@ -1619,16 +1653,19 @@ async function familyMemberLogin() {
             // Close modal
             closeFamilyLoginModal();
             
+            // IMPORTANT: Hide controls BEFORE showing app
+            hideControlsForFamilyMember();
+            
             // Show app
             showApp();
             
             // Show welcome message
             alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
             
-            // Load data first
+            // Load data
             await loadData();
             
-            // Then automatically load the person they're monitoring
+            // Then show the person they're monitoring
             if (data.monitoring && data.monitoring.user_id) {
                 await viewUserLogs(
                     data.monitoring.user_id, 
@@ -1646,6 +1683,7 @@ async function familyMemberLogin() {
         alert('Network error. Please try again.');
     }
 }
+
         // ============================================================================
         // RECORDING
         // ============================================================================
