@@ -632,6 +632,19 @@
         .toast.success {
             background: #34C759;
         }
+        /* Family member view-only mode */
+        .viewing-family-member #recordSection,
+        .viewing-family-member #voiceInputArea,
+        .viewing-family-member #textInputArea,
+        .viewing-family-member #questionSection,
+        .viewing-family-member #familyCard,
+        .viewing-family-member #subscriptionCard {
+            display: none !important;
+        }
+
+        .viewing-family-member #logsSection {
+            display: block !important;
+        }
     </style>
 </head>
 <body>
@@ -676,6 +689,38 @@
             </div>
 
             <div class="content">
+                <!-- Family Member Dashboard Banner -->
+                <div id="familyDashboard" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; border-radius: 16px; padding: 30px; margin-bottom: 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                            <div>
+                                <h2 style="color: white; margin: 0 0 8px 0; font-size: 28px;">
+                                    👀 Viewing Activity Logs
+                                </h2>
+                                <p style="font-size: 20px; font-weight: 600; margin: 0;">
+                                    <span id="viewingUserName"></span>
+                                </p>
+                                <p style="font-size: 16px; opacity: 0.9; margin: 4px 0 0 0;">
+                                    <span id="viewingRelationship"></span> • Read-only access
+                                </p>
+                            </div>
+                            
+                            <button 
+                                onclick="switchToMyAccount()" 
+                                style="background: white; color: #2E7D32; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.3)'"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'">
+                                ← Switch to My Account
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
+                            <p style="margin: 0; font-size: 15px; opacity: 0.9;">
+                                💡 You can view their activity history but cannot record new activities for them.
+                            </p>
+                        </div>
+                    </div>
+                </div>                
                 <!-- Notification Permission Banner -->
                 <div id="notificationBanner" class="notification-banner" style="display: none;">
                     <span class="notification-banner-text">
@@ -944,6 +989,7 @@ Example: I went for a 30-minute walk and had breakfast."
         let questionMode = 'text';
         let questionMediaRecorder = null;
         let questionAudioChunks = [];
+        let viewingUserId = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -1357,11 +1403,11 @@ function closeFamilyLoginModal() {
 // ============================================================================
 
 // Track which user is being viewed
-let viewingUserId = null;
 
 async function viewUserLogs(userId, userName, relationship) {
     viewingUserId = userId;
-    
+    // Add class to body to enable view-only mode
+    document.body.classList.add('viewing-family-member');
     // Show family dashboard banner
     const familyDashboard = document.getElementById('familyDashboard');
     if (familyDashboard) {
@@ -1370,10 +1416,52 @@ async function viewUserLogs(userId, userName, relationship) {
         document.getElementById('viewingRelationship').textContent = `Your ${relationship}`;
     }
     
-    // Hide record section (family members can only view, not record)
+    // Hide ALL recording-related sections
     const recordSection = document.getElementById('recordSection');
     if (recordSection) {
         recordSection.style.display = 'none';
+    }
+    
+    // Hide voice input area
+    const voiceInput = document.getElementById('voiceInputArea');
+    if (voiceInput) {
+        voiceInput.style.display = 'none';
+    }
+    
+    // Hide text input area
+    const textInput = document.getElementById('textInputArea');
+    if (textInput) {
+        textInput.style.display = 'none';
+    }
+    
+    // Hide ask question section
+    const questionSection = document.getElementById('questionSection');
+    if (questionSection) {
+        questionSection.style.display = 'none';
+    }
+    
+    // Hide family member card (can't add family of family)
+    const familyCard = document.getElementById('familyCard');
+    if (familyCard) {
+        familyCard.style.display = 'none';
+    }
+    
+    // Hide subscription/trial info
+    const subscriptionCard = document.getElementById('subscriptionCard');
+    if (subscriptionCard) {
+        subscriptionCard.style.display = 'none';
+    }
+    
+    // Show ONLY the logs section
+    const logsSection = document.getElementById('logsSection');
+    if (logsSection) {
+        logsSection.style.display = 'block';
+    }
+    
+    // Update page title
+    const pageTitle = document.querySelector('.app-container h2');
+    if (pageTitle) {
+        pageTitle.textContent = `${userName}'s Activity Logs`;
     }
     
     // Load their logs
@@ -1435,10 +1523,46 @@ function switchToMyAccount() {
         familyDashboard.style.display = 'none';
     }
     
-    // Show record section
+    // Show recording section
     const recordSection = document.getElementById('recordSection');
     if (recordSection) {
         recordSection.style.display = 'block';
+    }
+    
+    // Show voice input
+    const voiceInput = document.getElementById('voiceInputArea');
+    if (voiceInput) {
+        voiceInput.style.display = 'block';
+    }
+    
+    // Show text input
+    const textInput = document.getElementById('textInputArea');
+    if (textInput) {
+        textInput.style.display = 'block';
+    }
+    
+    // Show question section
+    const questionSection = document.getElementById('questionSection');
+    if (questionSection) {
+        questionSection.style.display = 'block';
+    }
+    
+    // Show family card
+    const familyCard = document.getElementById('familyCard');
+    if (familyCard) {
+        familyCard.style.display = 'block';
+    }
+    
+    // Show subscription card
+    const subscriptionCard = document.getElementById('subscriptionCard');
+    if (subscriptionCard) {
+        subscriptionCard.style.display = 'block';
+    }
+    
+    // Restore page title
+    const pageTitle = document.querySelector('.app-container h2');
+    if (pageTitle) {
+        pageTitle.textContent = 'Voice Log';
     }
     
     // Load my own logs
