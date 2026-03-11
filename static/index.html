@@ -1125,13 +1125,14 @@
         let questionMediaRecorder = null;
         let questionAudioChunks = [];
         let viewingUserId = null;
+    
 
         // Initialize
     // ============================================================================
     // INITIALIZATION - CHECK FOR EXISTING SESSION
     // ============================================================================
     
-    window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', () => {
         console.log('Page loaded, checking for saved session...');
         
         // Check if user was previously logged in
@@ -1161,7 +1162,7 @@
         // AUTHENTICATION
         // ============================================================================
 
-        async function signInWithGoogle() {
+async function signInWithGoogle() {
             // Simple email-based sign in
             const email = prompt('Enter your email address:');
             if (!email) return;
@@ -1172,7 +1173,19 @@
             await signInWithBackend(email, name);
         }
 
-        async function signInWithBackend(email, name) {
+    function showSignIn() {
+            document.getElementById('signInScreen').style.display = 'block';
+            document.getElementById('appScreen').style.display = 'none';
+        }
+
+function showApp() {
+            document.getElementById('signInScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+            document.getElementById('userName').textContent = user.name;
+        }
+
+
+async function signInWithBackend(email, name) {
             try {
                 const response = await fetch(`${API_URL}/auth/simple`, {
                     method: 'POST',
@@ -1209,19 +1222,7 @@
             }
         }
 
-        function loadSession() {
-            const savedToken = localStorage.getItem('accessToken');
-            const savedUser = localStorage.getItem('user');
-            
-            if (savedToken && savedUser) {
-                accessToken = savedToken;
-                user = JSON.parse(savedUser);
-                showApp();
-                loadData();
-            }
-        }
-
-        function signOut() {
+function signOut() {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('user');
             accessToken = null;
@@ -1231,256 +1232,47 @@
             
             document.getElementById('signInScreen').style.display = 'block';
             document.getElementById('appScreen').style.display = 'none';
+            showSignIn();
         }
 
-        function showApp() {
-            document.getElementById('signInScreen').style.display = 'none';
-            document.getElementById('appScreen').style.display = 'block';
-            document.getElementById('userName').textContent = user.name;
-        }
+        function showFamilyLoginModal() {
+        const modal = document.getElementById('familyLoginModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
 
-        // ============================================================================
-        // PUSH NOTIFICATIONS
-        // ============================================================================
+function closeFamilyLoginModal() {
+    const modal = document.getElementById('familyLoginModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    document.getElementById('familyLoginEmail').value = '';
+    document.getElementById('familyLoginPasscode').value = '';
+}
 
-        function checkNotificationPermission() {
-            if (!('Notification' in window)) {
-                console.log('This browser does not support notifications');
-                return;
-            }
+async function familyMemberLogin() {
+    const email = document.getElementById('familyLoginEmail').value.trim();
+    const passcode = document.getElementById('familyLoginPasscode').value.trim();
 
-            if (Notification.permission === 'default') {
-                document.getElementById('notificationBanner').style.display = 'flex';
-            } else if (Notification.permission === 'granted') {
-                document.getElementById('notificationBanner').style.display = 'none';
-                //subscribeToNotifications();
-            }
-        }
-        async function requestNotificationPermission() {
-            if (!('Notification' in window)) {
-                console.log('Notifications not supported');
-                return;
-            }
-
-            try {
-                const permission = await Notification.requestPermission();
-                
-                if (permission === 'granted') {
-                    console.log('Notification permission granted');
-                    
-                    // Show test notification
-                    new Notification('Voice Log', {
-                        body: 'Notifications enabled!',
-                    });
-                }
-            } catch (error) {
-                console.error('Notification error:', error);
-            }
-        }
-
-        async function subscribeToNotifications() {
-            // Register service worker for push notifications
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                try {
-                    const registration = await navigator.serviceWorker.register('/sw.js');
-                    console.log('Service Worker registered:', registration);
-                    
-                    // Subscribe to push notifications
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array('YOUR_VAPID_PUBLIC_KEY') // TODO: Add your VAPID key
-                    });
-                    
-                    // Send subscription to backend
-                    await fetch(`${API_URL}/notifications/subscribe`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(subscription),
-                    });
-                    
-                    console.log('Push subscription successful');
-                } catch (error) {
-                    console.error('Service worker registration failed:', error);
-                }
-            }
-        }
-        function showSignIn() {
-            document.getElementById('signInScreen').style.display = 'block';
-            document.getElementById('appScreen').style.display = 'none';
-        }
-        
-        function showApp() {
-            document.getElementById('signInScreen').style.display = 'none';
-            document.getElementById('appScreen').style.display = 'block';
-        }
- 
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        function showNotification(title, body) {
-            if (Notification.permission === 'granted') {
-                new Notification(title, {
-                    body: body,
-                    tag: 'activity-alert',
-                    requireInteraction: false
-                });
-            }
-        }
-
-        // ============================================================================
-        // DATA LOADING
-        // ============================================================================
-
-        async function loadData() {
-            await Promise.all([
-                loadSubscription(),
-                loadFamilyMember(),
-                loadRecentLogs()
-            ]);
-        }
-
-        async function loadSubscription() {
-            try {
-                const response = await fetch(`${API_URL}/subscription`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    subscription = await response.json();
-                    
-                    if (subscription.trial && subscription.trial.is_trial) {
-                        document.getElementById('trialStatus').style.display = 'block';
-                        document.getElementById('daysLeft').textContent = subscription.trial.days_left;
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading subscription:', error);
-            }
-        }
-
-        async function loadFamilyMember() {
-            try {
-                const response = await fetch(`${API_URL}/family-member`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    familyMember = data.family_member;
-                    
-                    if (familyMember) {
-                        document.getElementById('noFamilyView').style.display = 'none';
-                        document.getElementById('hasFamilyView').style.display = 'block';
-                        document.getElementById('familyName').textContent = familyMember.name;
-                        document.getElementById('familyEmail').textContent = familyMember.email;
-                        document.getElementById('familyRelationship').textContent = familyMember.relationship_type;
-                    } else {
-                        document.getElementById('noFamilyView').style.display = 'block';
-                        document.getElementById('hasFamilyView').style.display = 'none';
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading family member:', error);
-            }
-        }
-
-        async function loadRecentLogs() {
-            try {
-                const response = await fetch(`${API_URL}/logs?days=7`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-                if (!response.ok) return;
-
-                const logs = await response.json();
-                const logsList = document.getElementById('logsList');
-                
-                if (logs.length === 0) {
-                    logsList.innerHTML = '<p style="color: #999; text-align: center;">No activities logged yet</p>';
-                    return;
-                }
-
-                logsList.innerHTML = logs.map(log => {
-                    const date = new Date(log.timestamp);
-                    const badgeClass = log.input_type === 'voice' ? 'voice' : 'text';
-                    const badge = log.input_type === 'voice' ? '🎤 Voice' : '⌨️ Text';
-                    
-                    return `
-                        <div class="log-item">
-                            <div class="log-header">
-                                <span class="log-timestamp">${date.toLocaleString()}</span>
-                                <span class="log-badge ${badgeClass}">${badge}</span>
-                            </div>
-                            <div class="log-text">${log.transcription}</div>
-                        </div>
-                    `;
-                }).join('');
-
-            } catch (error) {
-                console.error('Error loading logs:', error);
-            }
-        }
-
-        // ============================================================================
-        // FAMILY MEMBER
-        // ============================================================================
-
-        function showAddFamilyModal() {
-            document.getElementById('addFamilyModal').classList.add('show');
-        }
-
-        function closeAddFamilyModal() {
-            document.getElementById('addFamilyModal').classList.remove('show');
-            document.getElementById('modalFamilyName').value = '';
-            document.getElementById('modalFamilyEmail').value = '';
-            document.getElementById('modalFamilyRelationship').value = '';
-        }
-
-        async function addFamilyMember() {
-    const name = document.getElementById('modalFamilyName').value.trim();
-    const email = document.getElementById('modalFamilyEmail').value.trim();
-    const relationship = document.getElementById('modalFamilyRelationship').value.trim();
-    const passcode = document.getElementById('modalFamilyPasscode').value.trim();
-
-    if (!name || !email || !relationship || !passcode) {
-        alert('Please fill in all fields');
+    if (!email || !passcode) {
+        alert('Please enter both email and passcode');
         return;
     }
 
-    // Validate passcode (4 digits)
     if (!/^\d{4}$/.test(passcode)) {
-        alert('Passcode must be exactly 4 digits');
+        alert('Passcode must be 4 digits');
         return;
     }
 
     try {
-        const response = await fetch(`${API_URL}/family-member`, {
+        const response = await fetch(`${API_URL}/auth/family-login`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                name: name, 
                 email: email, 
-                relationship_type: relationship,
                 passcode: passcode
             }),
         });
@@ -1488,31 +1280,47 @@
         if (response.ok) {
             const data = await response.json();
             
-            closeAddFamilyModal();
+            // Save access token
+            accessToken = data.access_token;
+            user = data.user;
             
-            // Show passcode in confirmation
-            alert(`✅ Family member added!\n\nShare with ${name}:\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login.`);
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('user', JSON.stringify(user));
             
-            await loadFamilyMember();
-        } else {
-            // Handle error response
-            let errorMessage = 'Failed to add family member';
+            // Close modal
+            closeFamilyLoginModal();
             
-            try {
-                const error = await response.json();
-                errorMessage = error.detail || errorMessage;
-            } catch (e) {
-                // If response is not JSON (like HTML error page)
-                errorMessage = `Server error (${response.status}). Please try again.`;
+            // IMPORTANT: Hide controls BEFORE showing app
+            hideControlsForFamilyMember();
+            
+            // Show app
+            showApp();
+            
+            // Show welcome message
+            alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
+            
+            // Load data
+            await loadData();
+            
+            // Then show the person they're monitoring
+            if (data.monitoring && data.monitoring.user_id) {
+                await viewUserLogs(
+                    data.monitoring.user_id, 
+                    data.monitoring.user_name, 
+                    data.monitoring.relationship
+                );
             }
             
-            alert(errorMessage);
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Invalid email or passcode');
         }
     } catch (error) {
-        console.error('Error adding family member:', error);
-        alert('Network error. Please check your connection and try again.');
+        console.error('Family login error:', error);
+        alert('Network error. Please try again.');
     }
 }
+
 // ============================================================================
 // UI NAVIGATION FUNCTIONS
 // ============================================================================
@@ -1566,13 +1374,14 @@ function showTextInput() {
 }
 
 
+
+
+
 // ============================================================================
-// VOICE RECORDING FUNCTIONS
+// FAMILY MEMBER VIEWING FUNCTIONS
 // ============================================================================
 
-let isRecording = false;
-let mediaRecorder = null;
-let audioChunks = [];
+// Track which user is being viewed
 
 async function toggleVoiceRecording() {
     if (!isRecording) {
@@ -1667,7 +1476,6 @@ async function processVoiceRecording(audioBlob) {
     }
 }
 
-
 // ============================================================================
 // TEXT LOG FUNCTIONS
 // ============================================================================
@@ -1717,22 +1525,6 @@ async function submitTextLog() {
 // ASK QUESTION FUNCTIONS
 // ============================================================================
 
-async function submitQuestion() {
-    const question = document.getElementById('questionInput').value.trim();
-    
-    if (!question) {
-        alert('Please enter a question');
-        return;
-    }
-    
-    await askQuestion(question);
-}
-
-async function askQuickQuestion(question) {
-    document.getElementById('questionInput').value = question;
-    await askQuestion(question);
-}
-
 async function askQuestion(question) {
     try {
         // Show loading
@@ -1773,61 +1565,23 @@ async function askQuestion(question) {
     }
 }
 
-
-  // Update addFamilyMember function to include passcode
-
-function closeAddFamilyModal() {
-    document.getElementById('addFamilyModal').classList.remove('show');
-    document.getElementById('modalFamilyName').value = '';
-    document.getElementById('modalFamilyEmail').value = '';
-    document.getElementById('modalFamilyRelationship').value = '';
-    document.getElementById('modalFamilyPasscode').value = '';
-}
-        async function removeFamilyMember() {
-            if (!confirm('Are you sure you want to remove this family member? They will no longer receive notifications.')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/family-member`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    alert('Family member removed');
-                    await loadFamilyMember();
-                }
-            } catch (error) {
-                alert('Failed to remove family member');
-            }
-        }
-
-function closeAddFamilyModal() {
-    document.getElementById('addFamilyModal').classList.remove('show');
-    document.getElementById('modalFamilyName').value = '';
-    document.getElementById('modalFamilyEmail').value = '';
-    document.getElementById('modalFamilyRelationship').value = '';
-    document.getElementById('modalFamilyPasscode').value = '';
+async function submitQuestion() {
+    const question = document.getElementById('questionInput').value.trim();
+    
+    if (!question) {
+        alert('Please enter a question');
+        return;
+    }
+    
+    await askQuestion(question);
 }
 
-// Family Member Login Functions
-function showFamilyLoginModal() {
-    document.getElementById('familyLoginModal').classList.add('show');
+async function askQuickQuestion(question) {
+    document.getElementById('questionInput').value = question;
+    await askQuestion(question);
 }
 
-function closeFamilyLoginModal() {
-    document.getElementById('familyLoginModal').classList.remove('show');
-    document.getElementById('familyLoginEmail').value = '';
-    document.getElementById('familyLoginPasscode').value = '';
-}
-// ============================================================================
-// FAMILY MEMBER VIEWING FUNCTIONS
-// ============================================================================
-
-// Track which user is being viewed
+// Family Viewing Functions
 
 async function viewUserLogs(userId, userName, relationship) {
     viewingUserId = userId;
@@ -1921,18 +1675,6 @@ function switchToMyAccount() {
     loadRecentLogs();
 }
 
-function getCategoryEmoji(category) {
-    const emojis = {
-        'medication': '💊',
-        'exercise': '🏃',
-        'meal': '🍽️',
-        'medical': '🏥',
-        'social': '👥',
-        'general': '📝'
-    };
-    return emojis[category] || '📝';
-}
-
 function hideControlsForFamilyMember() {
     // Hide main action buttons
     const mainActions = document.getElementById('mainActions');
@@ -1961,29 +1703,303 @@ function showControlsForOwnAccount() {
     if (subscriptionCard) subscriptionCard.style.display = 'block';
 }
 
+       // ============================================================================
+        // DATA LOADING
+        // ============================================================================
 
-async function familyMemberLogin() {
-    const email = document.getElementById('familyLoginEmail').value.trim();
-    const passcode = document.getElementById('familyLoginPasscode').value.trim();
+        async function loadData() {
+            await Promise.all([
+                loadSubscription(),
+                loadFamilyMember(),
+                loadRecentLogs()
+            ]);
+        }
 
-    if (!email || !passcode) {
-        alert('Please enter both email and passcode');
+async function loadSubscription() {
+            try {
+        const response = await fetch(`${API_URL}/subscription`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        if (response.ok) {
+            subscription = await response.json();
+            
+            // Update subscription display if element exists
+            const subCard = document.getElementById('subscriptionCard');
+            if (subCard && subscription) {
+                // Update subscription info in UI
+                console.log('Subscription loaded:', subscription);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading subscription:', error);
+    }
+}
+
+        async function loadFamilyMember() {
+            try {
+                const response = await fetch(`${API_URL}/family-member`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    familyMember = data.family_member;
+                    
+                    if (familyMember) {
+                        document.getElementById('noFamilyView').style.display = 'none';
+                        document.getElementById('hasFamilyView').style.display = 'block';
+                        document.getElementById('familyName').textContent = familyMember.name;
+                        document.getElementById('familyEmail').textContent = familyMember.email;
+                        document.getElementById('familyRelationship').textContent = familyMember.relationship_type;
+                    } else {
+                        document.getElementById('noFamilyView').style.display = 'block';
+                        document.getElementById('hasFamilyView').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading family member:', error);
+            }
+        }
+
+        async function loadRecentLogs() {
+            try {
+                const response = await fetch(`${API_URL}/logs?days=7`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (!response.ok) return;
+
+                const logs = await response.json();
+                const logsList = document.getElementById('logsList');
+                
+                if (logs.length === 0) {
+                    logsList.innerHTML = '<p style="color: #999; text-align: center;">No activities logged yet</p>';
+                    return;
+                }
+
+                logsList.innerHTML = logs.map(log => {
+                    const date = new Date(log.timestamp);
+                    const badgeClass = log.input_type === 'voice' ? 'voice' : 'text';
+                    const badge = log.input_type === 'voice' ? '🎤 Voice' : '⌨️ Text';
+                    
+                    return `
+                        <div class="log-item">
+                            <div class="log-header">
+                                <span class="log-timestamp">${date.toLocaleString()}</span>
+                                <span class="log-badge ${badgeClass}">${badge}</span>
+                            </div>
+                            <div class="log-text">${log.transcription}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading logs:', error);
+            }
+        }
+
+
+function displayLogs(logs) {
+    const logsList = document.getElementById('logsList');
+    if (!logsList) return;
+    
+    if (!logs || logs.length === 0) {
+        logsList.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No activities logged yet</p>';
         return;
     }
 
+    logsList.innerHTML = logs.map(log => {
+        const date = new Date(log.timestamp);
+        const badgeClass = log.input_type === 'voice' ? 'voice' : 'text';
+        const badge = log.input_type === 'voice' ? '🎤 Voice' : '⌨️ Text';
+        
+        return `
+            <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #666; font-size: 14px;">${date.toLocaleString()}</span>
+                    <span style="background: ${log.input_type === 'voice' ? '#667eea' : '#4CAF50'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${badge}</span>
+                </div>
+                <div style="font-size: 16px; color: #333; line-height: 1.6;">${log.transcription}</div>
+                ${log.category ? `<div style="margin-top: 8px; color: #666; font-size: 14px;">${getCategoryEmoji(log.category)} ${log.category}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function getCategoryEmoji(category) {
+    const emojis = {
+        'medication': '💊',
+        'exercise': '🏃',
+        'meal': '🍽️',
+        'medical': '🏥',
+        'social': '👥',
+        'general': '📝'
+    };
+    return emojis[category] || '📝';
+}
+
+        // here..
+        function showAddFamilyModal() {
+            document.getElementById('addFamilyModal').classList.add('show');
+        }
+
+        function closeAddFamilyModal() {
+            document.getElementById('addFamilyModal').classList.remove('show');
+            document.getElementById('modalFamilyName').value = '';
+            document.getElementById('modalFamilyEmail').value = '';
+            document.getElementById('modalFamilyRelationship').value = '';
+        }
+
+        function loadSession() {
+            const savedToken = localStorage.getItem('accessToken');
+            const savedUser = localStorage.getItem('user');
+            
+            if (savedToken && savedUser) {
+                accessToken = savedToken;
+                user = JSON.parse(savedUser);
+                showApp();
+                loadData();
+            }
+        }
+
+        // ============================================================================
+        // PUSH NOTIFICATIONS
+        // ============================================================================
+
+        function checkNotificationPermission() {
+            if (!('Notification' in window)) {
+                console.log('This browser does not support notifications');
+                return;
+            }
+
+            if (Notification.permission === 'default') {
+                document.getElementById('notificationBanner').style.display = 'flex';
+            } else if (Notification.permission === 'granted') {
+                document.getElementById('notificationBanner').style.display = 'none';
+                //subscribeToNotifications();
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                console.log('Notifications not supported');
+                return;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    console.log('Notification permission granted');
+                    
+                    // Show test notification
+                    new Notification('Voice Log', {
+                        body: 'Notifications enabled!',
+                    });
+                }
+            } catch (error) {
+                console.error('Notification error:', error);
+            }
+        }
+
+        async function subscribeToNotifications() {
+            // Register service worker for push notifications
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    console.log('Service Worker registered:', registration);
+                    
+                    // Subscribe to push notifications
+                    const subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array('YOUR_VAPID_PUBLIC_KEY') // TODO: Add your VAPID key
+                    });
+                    
+                    // Send subscription to backend
+                    await fetch(`${API_URL}/notifications/subscribe`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(subscription),
+                    });
+                    
+                    console.log('Push subscription successful');
+                } catch (error) {
+                    console.error('Service worker registration failed:', error);
+                }
+            }
+        }
+
+       
+        function showApp() {
+            document.getElementById('signInScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+        }
+ 
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        function showNotification(title, body) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    tag: 'activity-alert',
+                    requireInteraction: false
+                });
+            }
+        }
+
+ 
+        // ============================================================================
+        // FAMILY MEMBER
+        // ============================================================================
+
+
+        async function addFamilyMember() {
+    const name = document.getElementById('modalFamilyName').value.trim();
+    const email = document.getElementById('modalFamilyEmail').value.trim();
+    const relationship = document.getElementById('modalFamilyRelationship').value.trim();
+    const passcode = document.getElementById('modalFamilyPasscode').value.trim();
+
+    if (!name || !email || !relationship || !passcode) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    // Validate passcode (4 digits)
     if (!/^\d{4}$/.test(passcode)) {
-        alert('Passcode must be 4 digits');
+        alert('Passcode must be exactly 4 digits');
         return;
     }
 
     try {
-        const response = await fetch(`${API_URL}/auth/family-login`, {
+        const response = await fetch(`${API_URL}/family-member`, {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
+                name: name, 
                 email: email, 
+                relationship_type: relationship,
                 passcode: passcode
             }),
         });
@@ -1991,74 +2007,85 @@ async function familyMemberLogin() {
         if (response.ok) {
             const data = await response.json();
             
-            // Save access token
-            accessToken = data.access_token;
-            user = data.user;
+            closeAddFamilyModal();
             
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('user', JSON.stringify(user));
+            // Show passcode in confirmation
+            alert(`✅ Family member added!\n\nShare with ${name}:\nEmail: ${email}\nPasscode: ${passcode}\n\nThey can use these to login.`);
             
-            // Close modal
-            closeFamilyLoginModal();
+            await loadFamilyMember();
+        } else {
+            // Handle error response
+            let errorMessage = 'Failed to add family member';
             
-            // IMPORTANT: Hide controls BEFORE showing app
-            hideControlsForFamilyMember();
-            
-            // Show app
-            showApp();
-            
-            // Show welcome message
-            alert(`Welcome ${data.user.name}!\n\nYou're now viewing ${data.monitoring.user_name}'s activities.`);
-            
-            // Load data
-            await loadData();
-            
-            // Then show the person they're monitoring
-            if (data.monitoring && data.monitoring.user_id) {
-                await viewUserLogs(
-                    data.monitoring.user_id, 
-                    data.monitoring.user_name, 
-                    data.monitoring.relationship
-                );
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch (e) {
+                // If response is not JSON (like HTML error page)
+                errorMessage = `Server error (${response.status}). Please try again.`;
             }
             
-        } else {
-            const error = await response.json();
-            alert(error.detail || 'Invalid email or passcode');
+            alert(errorMessage);
         }
     } catch (error) {
-        console.error('Family login error:', error);
-        alert('Network error. Please try again.');
+        console.error('Error adding family member:', error);
+        alert('Network error. Please check your connection and try again.');
     }
 }
+// ============================================================================
+// VOICE RECORDING FUNCTIONS
+// ============================================================================
+
+let isRecording = false;
+
+
+
+  // Update addFamilyMember function to include passcode
+
+function closeAddFamilyModal() {
+    document.getElementById('addFamilyModal').classList.remove('show');
+    document.getElementById('modalFamilyName').value = '';
+    document.getElementById('modalFamilyEmail').value = '';
+    document.getElementById('modalFamilyRelationship').value = '';
+    document.getElementById('modalFamilyPasscode').value = '';
+}
+        async function removeFamilyMember() {
+            if (!confirm('Are you sure you want to remove this family member? They will no longer receive notifications.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/family-member`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    alert('Family member removed');
+                    await loadFamilyMember();
+                }
+            } catch (error) {
+                alert('Failed to remove family member');
+            }
+        }
+
+function closeAddFamilyModal() {
+    document.getElementById('addFamilyModal').classList.remove('show');
+    document.getElementById('modalFamilyName').value = '';
+    document.getElementById('modalFamilyEmail').value = '';
+    document.getElementById('modalFamilyRelationship').value = '';
+    document.getElementById('modalFamilyPasscode').value = '';
+}
+
+// Family Member Login Functions
+
+
 
         // ============================================================================
         // RECORDING
         // ============================================================================
-
-        function setRecordMode(mode) {
-            recordMode = mode;
-            
-            if (mode === 'voice') {
-                document.getElementById('voiceModeBtn').classList.add('active');
-                document.getElementById('textModeBtn').classList.remove('active');
-                document.getElementById('voiceMode').style.display = 'block';
-                document.getElementById('textMode').style.display = 'none';
-            } else {
-                document.getElementById('textModeBtn').classList.add('active');
-                document.getElementById('voiceModeBtn').classList.remove('active');
-                document.getElementById('textMode').style.display = 'block';
-                document.getElementById('voiceMode').style.display = 'none';
-            }
-        }
-
-        async function toggleRecording() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                stopRecording();
-            } else {
-                await startRecording();
-            }
-        }
 
         async function startRecording() {
             try {
@@ -2100,210 +2127,9 @@ async function familyMemberLogin() {
                 document.getElementById('processingSpinner').style.display = 'block';
             }
         }
-
-        async function uploadRecording(audioBlob) {
-            try {
-                const reader = new FileReader();
-                
-                reader.onloadend = async () => {
-                    const base64Audio = reader.result.split(',')[1];
-
-                    const response = await fetch(`${API_URL}/logs`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${accessToken}`,
-                        },
-                        body: JSON.stringify({
-                            audio_base64: base64Audio,
-                            timestamp: new Date().toISOString(),
-                        }),
-                    });
-
-                    const data = await response.json();
-                    
-                    document.getElementById('processingSpinner').style.display = 'none';
-
-                    if (response.ok) {
-                        const notifiedMsg = data.family_notified ? '\n🔔 Family member notified!' : '';
-                        alert(`✅ Logged: "${data.transcription}"${notifiedMsg}`);
-                        await loadRecentLogs();
-                    } else if (response.status === 403) {
-                        if (confirm(data.message + '\n\nUpgrade now?')) {
-                            // TODO: Navigate to upgrade page
-                            alert('Upgrade feature coming soon!');
-                        }
-                    } else {
-                        alert('Failed to save log');
-                    }
-                };
-
-                reader.readAsDataURL(audioBlob);
-                
-            } catch (error) {
-                console.error('Upload error:', error);
-                document.getElementById('processingSpinner').style.display = 'none';
-                alert('Failed to upload recording');
-            }
-        }
-
-        async function submitTextActivity() {
-            const text = document.getElementById('activityText').value.trim();
-            
-            if (!text || text.length < 3) {
-                alert('Please enter an activity description');
-                return;
-            }
-
-            document.getElementById('processingSpinner').style.display = 'block';
-
-            try {
-                const response = await fetch(`${API_URL}/logs/text`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                    body: JSON.stringify({
-                        text: text,
-                        timestamp: new Date().toISOString(),
-                    }),
-                });
-
-                const data = await response.json();
-                
-                document.getElementById('processingSpinner').style.display = 'none';
-
-                if (response.ok) {
-                    const notifiedMsg = data.family_notified ? '\n🔔 Family member notified!' : '';
-                    alert(`✅ Activity logged!${notifiedMsg}`);
-                    document.getElementById('activityText').value = '';
-                    await loadRecentLogs();
-                } else if (response.status === 403) {
-                    if (confirm(data.message + '\n\nUpgrade now?')) {
-                        alert('Upgrade feature coming soon!');
-                    }
-                } else {
-                    alert('Failed to save activity');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('processingSpinner').style.display = 'none';
-                alert('Network error');
-            }
-        }
-
         // ============================================================================
         // QUESTIONS
         // ============================================================================
-
-        function setQuestionMode(mode) {
-            questionMode = mode;
-            
-            if (mode === 'text') {
-                document.getElementById('textQuestionBtn').classList.add('active');
-                document.getElementById('voiceQuestionBtn').classList.remove('active');
-                document.getElementById('textQuestionMode').style.display = 'block';
-                document.getElementById('voiceQuestionMode').style.display = 'none';
-            } else {
-                document.getElementById('voiceQuestionBtn').classList.add('active');
-                document.getElementById('textQuestionBtn').classList.remove('active');
-                document.getElementById('voiceQuestionMode').style.display = 'block';
-                document.getElementById('textQuestionMode').style.display = 'none';
-            }
-        }
-
-        async function toggleQuestionRecording() {
-            if (questionMediaRecorder && questionMediaRecorder.state === 'recording') {
-                stopQuestionRecording();
-            } else {
-                await startQuestionRecording();
-            }
-        }
-
-        async function startQuestionRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                questionMediaRecorder = new MediaRecorder(stream);
-                questionAudioChunks = [];
-
-                questionMediaRecorder.ondataavailable = (event) => {
-                    questionAudioChunks.push(event.data);
-                };
-
-                questionMediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(questionAudioChunks, { type: 'audio/webm' });
-                    await transcribeAndAskQuestion(audioBlob);
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                questionMediaRecorder.start();
-                
-                const button = document.getElementById('questionRecordButton');
-                button.textContent = '⏹️ STOP';
-                button.classList.add('recording');
-                
-            } catch (error) {
-                console.error('Failed to start recording:', error);
-                alert('Could not access microphone. Please check permissions.');
-            }
-        }
-
-        function stopQuestionRecording() {
-            if (questionMediaRecorder) {
-                questionMediaRecorder.stop();
-                
-                const button = document.getElementById('questionRecordButton');
-                button.textContent = '🎤 ASK';
-                button.classList.remove('recording');
-                
-                document.getElementById('processingSpinner').style.display = 'block';
-            }
-        }
-
-        async function transcribeAndAskQuestion(audioBlob) {
-            try {
-                // Convert audio to base64
-                const reader = new FileReader();
-                
-                reader.onloadend = async () => {
-                    const base64Audio = reader.result.split(',')[1];
-
-                    // Transcribe the audio
-                    const transcribeResponse = await fetch(`${API_URL}/transcribe`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${accessToken}`,
-                        },
-                        body: JSON.stringify({
-                            audio_base64: base64Audio,
-                        }),
-                    });
-
-                    if (!transcribeResponse.ok) {
-                        throw new Error('Transcription failed');
-                    }
-
-                    const transcribeData = await transcribeResponse.json();
-                    const questionText = transcribeData.text;
-
-                    // Display the transcribed question
-                    alert(`You asked: "${questionText}"`);
-
-                    // Now ask the question
-                    await askQuestion(questionText);
-                };
-
-                reader.readAsDataURL(audioBlob);
-                
-            } catch (error) {
-                console.error('Transcription error:', error);
-                document.getElementById('processingSpinner').style.display = 'none';
-                alert('Failed to transcribe question');
-            }
-        }
 
         function askQuickQuestion(question) {
             askQuestion(question);
