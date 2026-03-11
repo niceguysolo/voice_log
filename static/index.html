@@ -645,6 +645,17 @@
         .viewing-family-member #logsSection {
             display: block !important;
         }
+        @keyframes pulse {
+           0% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+           50% {
+        box-shadow: 0 0 20px 10px rgba(76, 175, 80, 0.3);
+            }
+            100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+}
     </style>
 </head>
 <body>
@@ -703,9 +714,12 @@
                                 <p style="font-size: 16px; opacity: 0.9; margin: 4px 0 0 0;">
                                     <span id="viewingRelationship"></span> • Read-only access
                                 </p>
+                                <p style="font-size: 14px; opacity: 0.8; margin: 8px 0 0 0;">
+                                    🔄 Auto-refreshing every 10 seconds
+                                </p>
                             </div>
-                            
-                            <button onclick="switchToMyAccount()" 
+                             <button onclick="manualRefreshLogs()" style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄 Refresh Now</button>
+                             <button onclick="switchToMyAccount()" 
                                 style="background: white; color: #2E7D32; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;"
                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.3)'"
                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'">
@@ -1108,8 +1122,8 @@
     <script>
         // Configuration
         const API_URL = ''; // Change to your Railway URL
-        
-        
+        let logRefreshInterval = null;
+        let lastLogCount = 0;
         // State
         let accessToken = null;
         let user = null;
@@ -1602,9 +1616,77 @@ async function viewUserLogs(userId, userName, relationship) {
     if (logsSection) {
         logsSection.style.display = 'block';
     }
+    let lastLogCount = 0;
+
+async function loadFamilyMemberLogs(userId) {
+    try {
+        const response = await fetch(`${API_URL}/family/logs/${userId}?days=30`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            console.error('Failed to load activity logs');
+            return;
+        }
+
+        const data = await response.json();
+        
+        // Check if there are new logs
+        const hasNewLogs = data.logs && data.logs.length > lastLogCount;
+        lastLogCount = data.logs ? data.logs.length : 0;
+        
+        // Display logs
+        const logsList = document.getElementById('logsList');
+        
+        if (!data.logs || data.logs.length === 0) {
+            logsList.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No activities logged yet</p>';
+            return;
+        }
+
+        logsList.innerHTML = data.logs.map((log, index) => {
+            const date = new Date(log.timestamp);
+            const badgeClass = log.input_type === 'voice' ? 'voice' : 'text';
+            const badge = log.input_type === 'voice' ? '🎤 Voice' : '⌨️ Text';
+            
+            // Highlight first log if there are new logs
+            const isNew = hasNewLogs && index === 0;
+            const highlightStyle = isNew ? 'border: 3px solid #4CAF50; animation: pulse 2s;' : '';
+            
+            return `
+                <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); ${highlightStyle}">
+                    ${isNew ? '<div style="background: #4CAF50; color: white; display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-bottom: 10px;">✨ NEW</div>' : ''}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="color: #666; font-size: 14px;">${date.toLocaleString()}</span>
+                        <span style="background: ${log.input_type === 'voice' ? '#667eea' : '#4CAF50'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${badge}</span>
+                    </div>
+                    <div style="font-size: 16px; color: #333; line-height: 1.6;">${log.transcription}</div>
+                    ${log.category ? `<div style="margin-top: 8px; color: #666; font-size: 14px;">${getCategoryEmoji(log.category)} ${log.category}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        // Show notification if there are new logs
+        if (hasNewLogs && lastLogCount > 1) {
+            showToast('✨ New activity logged!', 'success');
+        }
+
+    } catch (error) {
+        console.error('Error loading family member logs:', error);
+    }
+}
+    // Load their logs initially
     
-    // Load their logs
-    await loadFamilyMemberLogs(userId);
+    // Set up auto-refresh every 10 seconds
+    if (logRefreshInterval) {
+        clearInterval(logRefreshInterval);
+    }
+    
+    logRefreshInterval = setInterval(async () => {
+        console.log('🔄 Auto-refreshing logs...');
+        await loadFamilyMemberLogs(userId);
+    }, 10000); // Refresh every 10 seconds
 }
 
 async function loadFamilyMemberLogs(userId) {
@@ -1656,6 +1738,13 @@ async function loadFamilyMemberLogs(userId) {
 function switchToMyAccount() {
     viewingUserId = null;
     
+    // Stop auto-refresh
+    if (logRefreshInterval) {
+        clearInterval(logRefreshInterval);
+        logRefreshInterval = null;
+        console.log('⏹️ Stopped auto-refresh');
+    }
+    
     // Hide family dashboard
     const familyDashboard = document.getElementById('familyDashboard');
     if (familyDashboard) {
@@ -1666,7 +1755,7 @@ function switchToMyAccount() {
     showControlsForOwnAccount();
     
     // Restore page title
-    const pageTitle = document.querySelector('.app-container h2');
+    const pageTitle = document.querySelector('h2');
     if (pageTitle) {
         pageTitle.textContent = 'Voice Log';
     }
@@ -2115,8 +2204,6 @@ function closeAddFamilyModal() {
 
 // Family Member Login Functions
 
-
-
         // ============================================================================
         // RECORDING
         // ============================================================================
@@ -2251,6 +2338,13 @@ function closeAddFamilyModal() {
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
-    </script>
+async function manualRefreshLogs() {
+if (viewingUserId) {
+        console.log('🔄 Manual refresh triggered');
+        await loadFamilyMemberLogs(viewingUserId);
+        showToast('✅ Logs refreshed!', 'success');
+    }
+}
+</script>
 </body>
 </html>
