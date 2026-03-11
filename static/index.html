@@ -705,8 +705,7 @@
                                 </p>
                             </div>
                             
-                            <button 
-                                onclick="switchToMyAccount()" 
+                            <button onclick="switchToMyAccount()" 
                                 style="background: white; color: #2E7D32; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s;"
                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.3)'"
                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'">
@@ -766,16 +765,14 @@
 <!-- NEW: Main Action Buttons (shown by default) -->
 <div id="mainActions" style="display: block; margin-bottom: 30px;">
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <button 
-            onclick="showRecordOptions()" 
+        <button onclick="showRecordOptions()" 
             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 40px 20px; border-radius: 16px; font-size: 24px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3); transition: all 0.2s;"
             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 32px rgba(102, 126, 234, 0.4)'"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 24px rgba(102, 126, 234, 0.3)'">
             🎤 Record
         </button>
         
-        <button 
-            onclick="showAskSection()" 
+        <button onclick="showAskSection()" 
             style="background: linear-gradient(135deg, #FF9800 0%, #FF5722 100%); color: white; border: none; padding: 40px 20px; border-radius: 16px; font-size: 24px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(255, 152, 0, 0.3); transition: all 0.2s;"
             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 32px rgba(255, 152, 0, 0.4)'"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 24px rgba(255, 152, 0, 0.3)'">
@@ -1173,7 +1170,7 @@ async function signInWithGoogle() {
             await signInWithBackend(email, name);
         }
 
-    function showSignIn() {
+function showSignIn() {
             document.getElementById('signInScreen').style.display = 'block';
             document.getElementById('appScreen').style.display = 'none';
         }
@@ -1235,7 +1232,7 @@ function signOut() {
             showSignIn();
         }
 
-        function showFamilyLoginModal() {
+function showFamilyLoginModal() {
         const modal = document.getElementById('familyLoginModal');
     if (modal) {
         modal.classList.add('show');
@@ -1271,10 +1268,7 @@ async function familyMemberLogin() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                email: email, 
-                passcode: passcode
-            }),
+            body: JSON.stringify({ email, passcode }),
         });
 
         if (response.ok) {
@@ -1290,10 +1284,10 @@ async function familyMemberLogin() {
             // Close modal
             closeFamilyLoginModal();
             
-            // IMPORTANT: Hide controls BEFORE showing app
+            // CRITICAL: Hide ALL controls BEFORE showing app
             hideControlsForFamilyMember();
             
-            // Show app
+            // Show app (with controls already hidden)
             showApp();
             
             // Show welcome message
@@ -1302,7 +1296,7 @@ async function familyMemberLogin() {
             // Load data
             await loadData();
             
-            // Then show the person they're monitoring
+            // Show the monitoring view
             if (data.monitoring && data.monitoring.user_id) {
                 await viewUserLogs(
                     data.monitoring.user_id, 
@@ -1586,7 +1580,7 @@ async function askQuickQuestion(question) {
 async function viewUserLogs(userId, userName, relationship) {
     viewingUserId = userId;
     
-    // Hide all controls (in case not already hidden)
+    // Hide ALL controls immediately
     hideControlsForFamilyMember();
     
     // Show family dashboard banner
@@ -1598,9 +1592,15 @@ async function viewUserLogs(userId, userName, relationship) {
     }
     
     // Update page title
-    const pageTitle = document.querySelector('.app-container h2');
+    const pageTitle = document.querySelector('h2');
     if (pageTitle) {
         pageTitle.textContent = `${userName}'s Activity Logs`;
+    }
+    
+    // Make sure ONLY logs are visible
+    const logsSection = document.getElementById('logsSection');
+    if (logsSection) {
+        logsSection.style.display = 'block';
     }
     
     // Load their logs
@@ -1676,17 +1676,51 @@ function switchToMyAccount() {
 }
 
 function hideControlsForFamilyMember() {
-    // Hide main action buttons
+    // Hide main action buttons (Record & Ask)
     const mainActions = document.getElementById('mainActions');
-    if (mainActions) mainActions.style.display = 'none';
+    if (mainActions) {
+        mainActions.style.display = 'none';
+    }
     
-    // Hide family card
+    // Hide all recording interfaces
+    const recordOptions = document.getElementById('recordOptions');
+    if (recordOptions) {
+        recordOptions.style.display = 'none';
+    }
+    
+    const voiceInterface = document.getElementById('voiceRecordingInterface');
+    if (voiceInterface) {
+        voiceInterface.style.display = 'none';
+    }
+    
+    const textInterface = document.getElementById('textInputInterface');
+    if (textInterface) {
+        textInterface.style.display = 'none';
+    }
+    
+    // Hide ask question interface
+    const askInterface = document.getElementById('askQuestionInterface');
+    if (askInterface) {
+        askInterface.style.display = 'none';
+    }
+    
+    // Hide family member card (can't add family of family)
     const familyCard = document.getElementById('familyCard');
-    if (familyCard) familyCard.style.display = 'none';
+    if (familyCard) {
+        familyCard.style.display = 'none';
+    }
     
-    // Hide subscription card
+    // Hide subscription/trial card
     const subscriptionCard = document.getElementById('subscriptionCard');
-    if (subscriptionCard) subscriptionCard.style.display = 'none';
+    if (subscriptionCard) {
+        subscriptionCard.style.display = 'none';
+    }
+    
+    // Make SURE logs section is visible
+    const logsSection = document.getElementById('logsSection');
+    if (logsSection) {
+        logsSection.style.display = 'block';
+    }
 }
 
 function showControlsForOwnAccount() {
