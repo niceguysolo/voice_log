@@ -656,6 +656,23 @@
         box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
     }
 }
+/* Family member view - hide everything except logs */
+body.family-member-view #mainActions,
+body.family-member-view #recordOptions,
+body.family-member-view #voiceRecordingInterface,
+body.family-member-view #textInputInterface,
+body.family-member-view #askQuestionInterface,
+body.family-member-view #questionSection,
+body.family-member-view #familyCard,
+body.family-member-view #addFamilyButton,
+body.family-member-view #subscriptionCard {
+    display: none !important;
+}
+
+body.family-member-view #logsSection {
+    display: block !important;
+}
+
     </style>
 </head>
 <body>
@@ -1144,31 +1161,31 @@
     // ============================================================================
     
 window.addEventListener('DOMContentLoaded', () => {
-        console.log('Page loaded, checking for saved session...');
+    console.log('Page loaded, checking for saved session...');
+    
+    const savedToken = localStorage.getItem('accessToken');
+    const savedUser = localStorage.getItem('user');
+    
+    if (savedToken && savedUser) {
+        console.log('Found saved session, restoring...');
         
-        // Check if user was previously logged in
-        const savedToken = localStorage.getItem('accessToken');
-        const savedUser = localStorage.getItem('user');
+        accessToken = savedToken;
+        user = JSON.parse(savedUser);
         
-        if (savedToken && savedUser) {
-            console.log('Found saved session, restoring...');
-            
-            accessToken = savedToken;
-            user = JSON.parse(savedUser);
-            
-            // Check if user is a family member
-            if (user.is_family_member) {
-                console.log('User is a family member, hiding controls');
-                hideControlsForFamilyMember();
-            }
-            
-            showApp();
-            loadData();
-        } else {
-            console.log('No saved session, showing sign-in screen');
-            showSignIn();
+        // Check if user is a family member
+        if (user.is_family_member) {
+            console.log('User is a family member, hiding controls');
+            document.body.classList.add('family-member-view');
+            hideControlsForFamilyMember();
         }
-    });
+        
+        showApp();
+        loadData();
+    } else {
+        console.log('No saved session, showing sign-in screen');
+        showSignIn();
+    }
+});
         // ============================================================================
         // AUTHENTICATION
         // ============================================================================
@@ -1297,6 +1314,9 @@ async function familyMemberLogin() {
             
             // Close modal
             closeFamilyLoginModal();
+            
+            // Add CSS class FIRST
+            document.body.classList.add('family-member-view');
             
             // CRITICAL: Hide ALL controls BEFORE showing app
             hideControlsForFamilyMember();
@@ -1590,9 +1610,11 @@ async function askQuickQuestion(question) {
 }
 
 // Family Viewing Functions
-
 async function viewUserLogs(userId, userName, relationship) {
     viewingUserId = userId;
+    
+    // Add CSS class to body for extra safety
+    document.body.classList.add('family-member-view');
     
     // Hide ALL controls immediately
     hideControlsForFamilyMember();
@@ -1616,7 +1638,22 @@ async function viewUserLogs(userId, userName, relationship) {
     if (logsSection) {
         logsSection.style.display = 'block';
     }
-    let lastLogCount = 0;
+    
+    // Load their logs initially
+    await loadFamilyMemberLogs(userId);
+    
+    // Set up auto-refresh every 10 seconds
+    if (logRefreshInterval) {
+        clearInterval(logRefreshInterval);
+    }
+    
+    logRefreshInterval = setInterval(async () => {
+        console.log('🔄 Auto-refreshing logs...');
+        await loadFamilyMemberLogs(userId);
+    }, 10000); // Refresh every 10 seconds
+    
+    console.log('✅ Family member view activated');
+}
 
 async function loadFamilyMemberLogs(userId) {
     try {
@@ -1738,6 +1775,9 @@ async function loadFamilyMemberLogs(userId) {
 function switchToMyAccount() {
     viewingUserId = null;
     
+    // Remove CSS class
+    document.body.classList.remove('family-member-view');
+    
     // Stop auto-refresh
     if (logRefreshInterval) {
         clearInterval(logRefreshInterval);
@@ -1762,6 +1802,8 @@ function switchToMyAccount() {
     
     // Load my own logs
     loadRecentLogs();
+    
+    console.log('✅ Switched back to own account');
 }
 
 function hideControlsForFamilyMember() {
@@ -1771,7 +1813,7 @@ function hideControlsForFamilyMember() {
         mainActions.style.display = 'none';
     }
     
-    // Hide all recording interfaces
+    // Hide ALL recording-related sections
     const recordOptions = document.getElementById('recordOptions');
     if (recordOptions) {
         recordOptions.style.display = 'none';
@@ -1787,16 +1829,28 @@ function hideControlsForFamilyMember() {
         textInterface.style.display = 'none';
     }
     
-    // Hide ask question interface
+    // Hide ask question interface (MUST be hidden for family)
     const askInterface = document.getElementById('askQuestionInterface');
     if (askInterface) {
         askInterface.style.display = 'none';
+    }
+    
+    // Hide entire question section if exists
+    const questionSection = document.getElementById('questionSection');
+    if (questionSection) {
+        questionSection.style.display = 'none';
     }
     
     // Hide family member card (can't add family of family)
     const familyCard = document.getElementById('familyCard');
     if (familyCard) {
         familyCard.style.display = 'none';
+    }
+    
+    // Hide add family button if exists separately
+    const addFamilyButton = document.getElementById('addFamilyButton');
+    if (addFamilyButton) {
+        addFamilyButton.style.display = 'none';
     }
     
     // Hide subscription/trial card
@@ -1810,6 +1864,8 @@ function hideControlsForFamilyMember() {
     if (logsSection) {
         logsSection.style.display = 'block';
     }
+    
+    console.log('✅ All controls hidden for family member');
 }
 
 function showControlsForOwnAccount() {
