@@ -1713,18 +1713,6 @@ async function loadFamilyMemberLogs(userId) {
         console.error('Error loading family member logs:', error);
     }
 }
-    // Load their logs initially
-    
-    // Set up auto-refresh every 10 seconds
-    if (logRefreshInterval) {
-        clearInterval(logRefreshInterval);
-    }
-    
-    logRefreshInterval = setInterval(async () => {
-        console.log('🔄 Auto-refreshing logs...');
-        await loadFamilyMemberLogs(userId);
-    }, 10000); // Refresh every 10 seconds
-}
 
 async function loadFamilyMemberLogs(userId) {
     try {
