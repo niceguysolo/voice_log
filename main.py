@@ -18,7 +18,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from jose import jwt
+from datetime import datetime, timedelta
+from fastapi import BackgroundTasks
+from jose import jwt, JWTError
 import os
 import uuid
 import time
@@ -154,22 +156,30 @@ def create_access_token(user_id: str) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
 
 def verify_token(authorization: str = Header(None)) -> str:
+    """Verify JWT token and return user_id"""
+    from jose import jwt, JWTError  # Import JWTError, not InvalidTokenError
+    
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing token")
+        raise HTTPException(status_code=401, detail="Missing or invalid token")
     
     token = authorization.replace("Bearer ", "")
     
     try:
+        SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+        if not SECRET_KEY:
+            raise HTTPException(status_code=500, detail="JWT_SECRET_KEY not configured")
+            
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload.get("sub")
+        user_id = payload.get("user_id")
+        
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
+        
         return user_id
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except JWTError as e:  # Use JWTError, not InvalidTokenError
+        print(f"JWT decode error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
-
+    
 # ============================================================================
 # SUBSCRIPTION HELPERS
 # ============================================================================
@@ -281,63 +291,63 @@ def send_email(to_email: str, subject: str, html_content: str):
     except Exception as e:
         print(f"Failed to send email: {str(e)}")
 
-def send_activity_alert(
-    family_email: str,
-    family_name: str,
-    user_name: str,
-    activity: str,
-    timestamp: datetime
-):
-    """Send activity alert to family member"""
-    subject = f"Activity Update: {user_name}"
-    
-    html_content = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-            <h1 style="color: white; margin: 0;">🎤 Voice Log</h1>
-        </div>
+async def send_family_notification(user_id: str, message: str, category: str, timestamp, db: Session):
+    """Send notification to family member if exists"""
+    try:
+        # Get family member
+        family_member = db.query(FamilyMember).filter(
+            FamilyMember.user_id == user_id,
+            FamilyMember.alert_enabled == True
+        ).first()
         
-        <div style="padding: 30px; background: #f9f9f9;">
-            <h2 style="color: #333;">Hi {family_name}!</h2>
-            
-            <p style="font-size: 16px; color: #666;">
-                <strong>{user_name}</strong> logged a new activity:
-            </p>
-            
-            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea; margin: 20px 0;">
-                <p style="font-size: 16px; color: #333; margin: 0;">
-                    "{activity}"
-                </p>
-                <p style="font-size: 14px; color: #999; margin-top: 10px;">
-                    {timestamp.strftime('%B %d, %Y at %I:%M %p')}
-                </p>
-            </div>
-            
-            <p style="font-size: 14px; color: #666;">
-                You're receiving this because you're listed as a family contact for {user_name}.
-            </p>
-            
-            <div style="text-align: center; margin-top: 30px;">
-                <a href="https://voicelog.app/dashboard" 
-                   style="background: #667eea; color: white; padding: 12px 30px; 
-                          text-decoration: none; border-radius: 8px; display: inline-block;">
-                    View Dashboard
-                </a>
-            </div>
-        </div>
+        if not family_member:
+            return
         
-        <div style="padding: 20px; text-align: center; font-size: 12px; color: #999;">
-            <p>Voice Log - Your Daily Memory Assistant</p>
-            <p>
-                <a href="https://voicelog.app/settings" style="color: #667eea;">Manage Alert Settings</a>
-            </p>
-        </div>
-    </body>
-    </html>
-    """
-    
-    send_email(family_email, subject, html_content)
+        # Get user info
+        from database import get_user_by_id
+        user = get_user_by_id(db, user_id)
+        if not user:
+            return
+        
+        # Format notification
+        category_emoji = {
+            'medication': '💊',
+            'exercise': '🏃',
+            'meal': '🍽️',
+            'medical': '🏥',
+            'social': '👥',
+            'general': '📝'
+        }
+        
+        emoji = category_emoji.get(category, '📝')
+        title = f"{emoji} {user.name} logged activity"
+        body = message[:100] + ('...' if len(message) > 100 else '')
+        
+        # Fix timestamp handling - handle both string and datetime
+        if isinstance(timestamp, str):
+            from datetime import datetime
+            try:
+                timestamp_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except:
+                timestamp_dt = datetime.utcnow()
+        elif isinstance(timestamp, datetime):
+            timestamp_dt = timestamp
+        else:
+            timestamp_dt = datetime.utcnow()
+        
+        formatted_time = timestamp_dt.strftime('%B %d, %Y at %I:%M %p')
+        
+        # Log notification (actual push notification implementation later)
+        print(f"[NOTIFICATION] To: {family_member.email}")
+        print(f"  Title: {title}")
+        print(f"  Body: {body}")
+        print(f"  Time: {formatted_time}")
+        
+    except Exception as e:
+        print(f"Error sending family notification: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't fail the log creation if notification fails
 
 def send_trial_reminder(user_email: str, user_name: str, days_left: int):
     """Send trial ending reminder"""
@@ -532,159 +542,139 @@ async def simple_sign_in(signin: dict, db: Session = Depends(get_db)):
 
 @app.post("/logs")
 async def create_voice_log_endpoint(
-    log: VoiceLogCreate,
-    background_tasks: BackgroundTasks,
+    log_data: VoiceLogCreate,
     user_id: str = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
-    """Create voice log with family alert"""
-    
-    # Check usage limits
-    if not check_usage_limits(user_id, "log", db):
-        subscription = db.query(Subscription).filter(
-            Subscription.user_id == user_id
-        ).first()
-        
-        return {
-            "error": "limit_reached",
-            "message": "You've reached your free tier limit. Upgrade to continue.",
-            "limit": 20,
-            "used": subscription.logs_this_month
-        }, 403
-    
+    """Create a voice log"""
     try:
-        user = get_user_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Transcribe audio
+        result = transcribe_audio_from_base64(log_data.audio)
         
-        # Transcribe
-        transcription_result = transcribe_audio_from_base64(log.audio_base64)
-        
-        if not transcription_result["success"]:
+        if not result["success"] or not result["text"]:
             raise HTTPException(status_code=400, detail="Transcription failed")
         
-        transcription = transcription_result["text"]
+        transcription = result["text"].strip()
         
-        # Create log
-        log_id = f"log_{uuid.uuid4().hex[:12]}"
-        timestamp = log.timestamp or datetime.utcnow()
+        # Parse timestamp to datetime object
+        if log_data.timestamp:
+            timestamp = datetime.fromisoformat(log_data.timestamp.replace('Z', '+00:00'))
+        else:
+            timestamp = datetime.utcnow()
+        
+        # Auto-categorize
         category = categorize_log(transcription)
         
-        voice_log = VoiceLog(
+        # Create log entry
+        log_id = f"log_{uuid.uuid4().hex[:12]}"
+        
+        log = VoiceLog(
             id=log_id,
             user_id=user_id,
             transcription=transcription,
             timestamp=timestamp,
             category=category,
-            input_type="voice"
+            input_type="voice",
+            audio_url=None
         )
         
-        db.add(voice_log)
+        db.add(log)
         db.commit()
-        db.refresh(voice_log)
+        db.refresh(log)
         
-        # Send alert to family member (in background)
-        family_member = db.query(FamilyMember).filter(
-            FamilyMember.user_id == user_id,
-            FamilyMember.alert_enabled == True
-        ).first()
-        
-        if family_member and family_member.alert_frequency == "realtime":
+        # Send notification (pass datetime object, not string)
+        if background_tasks:
             background_tasks.add_task(
-                send_activity_alert,
-                family_member.email,
-                family_member.name,
-                user.name,
+                send_family_notification,
+                user_id,
                 transcription,
-                timestamp
+                category,
+                timestamp,  # Pass datetime object
+                db
             )
         
         return {
-            "id": voice_log.id,
-            "transcription": voice_log.transcription,
-            "timestamp": voice_log.timestamp,
-            "category": voice_log.category,
-            "input_type": voice_log.input_type,
-            "family_notified": family_member is not None
+            "id": log.id,
+            "transcription": log.transcription,
+            "timestamp": log.timestamp.isoformat(),
+            "category": log.category,
+            "input_type": log.input_type
         }
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error creating voice log: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 @app.post("/logs/text")
 async def create_text_log_endpoint(
-    log: TextLogCreate,
-    background_tasks: BackgroundTasks,
+    log_data: TextLogCreate,
     user_id: str = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
-    """Create text log with family alert"""
-    
-    # Check usage limits
-    if not check_usage_limits(user_id, "log", db):
-        return {
-            "error": "limit_reached",
-            "message": "You've reached your free tier limit. Upgrade to continue."
-        }, 403
-    
+    """Create a text log"""
     try:
-        user = get_user_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        transcription = log_data.text.strip()
         
-        if not log.text or len(log.text.strip()) < 3:
-            raise HTTPException(status_code=400, detail="Text too short")
+        if not transcription:
+            raise HTTPException(status_code=400, detail="Text cannot be empty")
         
-        # Create log
+        # Parse timestamp to datetime object
+        if log_data.timestamp:
+            timestamp = datetime.fromisoformat(log_data.timestamp.replace('Z', '+00:00'))
+        else:
+            timestamp = datetime.utcnow()
+        
+        # Auto-categorize
+        category = categorize_log(transcription)
+        
+        # Create log entry (use the database function name you have)
         log_id = f"log_{uuid.uuid4().hex[:12]}"
-        timestamp = log.timestamp or datetime.utcnow()
-        category = categorize_log(log.text)
         
-        voice_log = VoiceLog(
+        # Use whichever database function you have - check database.py for the exact name
+        # It might be: create_voice_log, create_log, add_voice_log, etc.
+        log = VoiceLog(
             id=log_id,
             user_id=user_id,
-            transcription=log.text,
+            transcription=transcription,
             timestamp=timestamp,
             category=category,
-            input_type="text"
+            input_type="text",
+            audio_url=None
         )
         
-        db.add(voice_log)
+        db.add(log)
         db.commit()
-        db.refresh(voice_log)
+        db.refresh(log)
         
-        # Send alert to family member
-        family_member = db.query(FamilyMember).filter(
-            FamilyMember.user_id == user_id,
-            FamilyMember.alert_enabled == True
-        ).first()
-        
-        if family_member and family_member.alert_frequency == "realtime":
+        # Send notification (pass datetime object, not string)
+        if background_tasks:
             background_tasks.add_task(
-                send_activity_alert,
-                family_member.email,
-                family_member.name,
-                user.name,
-                log.text,
-                timestamp
+                send_family_notification,
+                user_id,
+                transcription,
+                category,
+                timestamp,  # Pass datetime object
+                db
             )
         
         return {
-            "id": voice_log.id,
-            "transcription": voice_log.transcription,
-            "timestamp": voice_log.timestamp,
-            "category": voice_log.category,
-            "input_type": voice_log.input_type,
-            "family_notified": family_member is not None
+            "id": log.id,
+            "transcription": log.transcription,
+            "timestamp": log.timestamp.isoformat(),
+            "category": log.category,
+            "input_type": log.input_type
         }
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error creating text log: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 @app.get("/logs")
 async def get_logs_endpoint(
     days: int = 60,
