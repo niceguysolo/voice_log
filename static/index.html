@@ -1653,7 +1653,7 @@ async function processVoiceRecording(audioBlob) {
             return;
         }
         
-        console.log('🔑 Using token:', accessToken.substring(0, 20) + '...');
+        console.log('🔑 Full token:', accessToken);  // Log FULL token temporarily for debugging
         
         // Convert to base64
         const reader = new FileReader();
@@ -1663,6 +1663,17 @@ async function processVoiceRecording(audioBlob) {
             try {
                 const base64Audio = reader.result.split(',')[1];
                 console.log('📝 Base64 audio length:', base64Audio.length);
+                
+                const requestBody = {
+                    audio: base64Audio,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.log('📤 Request details:');
+                console.log('  URL:', `${API_URL}/logs`);
+                console.log('  Method: POST');
+                console.log('  Authorization:', `Bearer ${accessToken.substring(0, 30)}...`);
+                console.log('  Body keys:', Object.keys(requestBody));
                 
                 // Show processing status
                 document.getElementById('recordingStatus').textContent = '⏳ Uploading...';
@@ -1674,17 +1685,19 @@ async function processVoiceRecording(audioBlob) {
                         'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        audio: base64Audio,
-                        timestamp: new Date().toISOString()
-                    }),
+                    body: JSON.stringify(requestBody),
                 });
                 
                 console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', [...response.headers.entries()]);
+                
+                // Try to get response body even on error
+                const responseText = await response.text();
+                console.log('📡 Response body:', responseText);
                 
                 if (response.status === 401) {
-                    // Token is invalid or expired
-                    console.error('❌ Token invalid or expired');
+                    console.error('❌ 401 Unauthorized');
+                    console.error('Response:', responseText);
                     document.getElementById('recordingStatus').textContent = '❌ Session expired';
                     alert('Your session has expired. Please sign in again.');
                     signOut();
@@ -1692,7 +1705,7 @@ async function processVoiceRecording(audioBlob) {
                 }
                 
                 if (response.ok) {
-                    const data = await response.json();
+                    const data = JSON.parse(responseText);
                     console.log('✅ Log saved:', data);
                     
                     document.getElementById('recordingStatus').innerHTML = `✅ Saved: "${data.transcription}"`;
@@ -1708,15 +1721,14 @@ async function processVoiceRecording(audioBlob) {
                         backToMainActions();
                     }, 2000);
                 } else {
-                    const error = await response.json();
-                    console.error('❌ Server error:', error);
-                    document.getElementById('recordingStatus').textContent = '❌ Error: ' + (error.detail || 'Failed to save');
-                    alert('Error saving activity: ' + (error.detail || 'Unknown error'));
+                    console.error('❌ Server error:', responseText);
+                    document.getElementById('recordingStatus').textContent = '❌ Error: ' + responseText;
+                    alert('Error saving activity: ' + responseText);
                 }
             } catch (uploadError) {
                 console.error('❌ Upload error:', uploadError);
                 document.getElementById('recordingStatus').textContent = '❌ Upload failed';
-                alert('Network error. Please check your connection and try again.');
+                alert('Network error: ' + uploadError.message);
             }
         };
         

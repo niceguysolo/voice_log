@@ -151,16 +151,42 @@ class TextLogCreate(BaseModel):
 # ============================================================================
 
 def create_access_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(days=30)
-    to_encode = {"sub": user_id, "exp": expire}
-    return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
+    """Create JWT access token"""
+    from jose import jwt
+    from datetime import datetime, timedelta
+    
+    SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    if not SECRET_KEY:
+        raise Exception("JWT_SECRET_KEY not configured")
+    
+    # Token expires in 30 days
+    expiration = datetime.utcnow() + timedelta(days=30)
+    
+    payload = {
+        "user_id": user_id,
+        "exp": expiration
+    }
+    
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    
+    print(f"[DEBUG] Created token for user {user_id}")
+    print(f"[DEBUG] Token: {token[:50]}...")
+    print(f"[DEBUG] Expires: {expiration}")
+    
+    return token
+
 
 def verify_token(authorization: str = Header(None)) -> str:
     """Verify JWT token and return user_id"""
     from jose import jwt, JWTError
+    import traceback
+    
+    print(f"[DEBUG] verify_token called")
+    print(f"[DEBUG] Authorization header: {authorization[:50] if authorization else 'None'}...")
     
     # Check if authorization header exists
     if not authorization:
+        print("[ERROR] Missing authorization header")
         raise HTTPException(
             status_code=401, 
             detail="Missing authorization header"
@@ -168,6 +194,7 @@ def verify_token(authorization: str = Header(None)) -> str:
     
     # Check if it starts with "Bearer "
     if not authorization.startswith("Bearer "):
+        print(f"[ERROR] Invalid format. Got: {authorization[:20]}")
         raise HTTPException(
             status_code=401, 
             detail="Invalid authorization format. Expected: Bearer <token>"
@@ -175,8 +202,10 @@ def verify_token(authorization: str = Header(None)) -> str:
     
     # Extract token
     token = authorization.replace("Bearer ", "").strip()
+    print(f"[DEBUG] Extracted token: {token[:30]}...")
     
     if not token:
+        print("[ERROR] Token is empty after extraction")
         raise HTTPException(
             status_code=401, 
             detail="Token is empty"
@@ -185,35 +214,45 @@ def verify_token(authorization: str = Header(None)) -> str:
     try:
         SECRET_KEY = os.getenv("JWT_SECRET_KEY")
         if not SECRET_KEY:
+            print("[ERROR] JWT_SECRET_KEY not configured in environment")
             raise HTTPException(
                 status_code=500, 
                 detail="JWT_SECRET_KEY not configured"
             )
         
+        print(f"[DEBUG] Using SECRET_KEY: {SECRET_KEY[:10]}...")
+        
         # Decode token
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        print(f"[DEBUG] Token decoded successfully. Payload: {payload}")
+        
         user_id = payload.get("user_id")
         
         if not user_id:
+            print("[ERROR] No user_id in token payload")
             raise HTTPException(
                 status_code=401, 
                 detail="Invalid token: missing user_id"
             )
         
+        print(f"[DEBUG] Returning user_id: {user_id}")
         return user_id
         
     except JWTError as e:
-        print(f"JWT decode error: {e}")
+        print(f"[ERROR] JWT decode error: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=401, 
             detail=f"Invalid token: {str(e)}"
         )
     except Exception as e:
-        print(f"Token verification error: {e}")
+        print(f"[ERROR] Unexpected error: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=401, 
             detail="Token verification failed"
-        )    
+        )
+    
 # ============================================================================
 # SUBSCRIPTION HELPERS
 # ============================================================================
@@ -582,6 +621,7 @@ async def create_voice_log_endpoint(
     background_tasks: BackgroundTasks = None
 ):
     """Create a voice log"""
+    print(f"[DEBUG] POST /logs called for user_id: {user_id}")
     try:
         print(f"📝 Creating voice log for user: {user_id}")
         # Transcribe audio
