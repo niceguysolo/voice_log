@@ -616,23 +616,50 @@ async def simple_sign_in(signin: dict, db: Session = Depends(get_db)):
 @app.post("/logs")
 async def create_voice_log_endpoint(
     log_data: VoiceLogCreate,
-    user_id: str = Depends(verify_token),
+    request: Request,
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = None
 ):
     """Create a voice log"""
-    print(f"[DEBUG] POST /logs called for user_id: {user_id}")
+    # Get authorization header manually
+    authorization = request.headers.get("Authorization")
+    print(f"[DEBUG] Authorization: {authorization[:50] if authorization else 'None'}...")
+    
+    # Verify token manually
+    user_id = verify_token(authorization)
+    print(f"[DEBUG] Verified user_id: {user_id}")
+    
     try:
-        print(f"📝 Creating voice log for user: {user_id}")
+        # Check if audio data exists
+        if not log_data.audio:
+            raise HTTPException(status_code=400, detail="No audio data provided")
+        
+        print(f"[DEBUG] Audio data length: {len(log_data.audio)}")
+        
         # Transcribe audio
         from audio_processing import transcribe_audio_from_base64
         result = transcribe_audio_from_base64(log_data.audio)
         
-        if not result["success"] or not result["text"]:
-            raise HTTPException(status_code=400, detail="Transcription failed")
+        print(f"[DEBUG] Transcription result: {result}")
+        
+        if not result["success"]:
+            error_msg = result.get("error", "Unknown transcription error")
+            print(f"[ERROR] Transcription failed: {error_msg}")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Transcription failed: {error_msg}"
+            )
+        
+        if not result["text"]:
+            print("[ERROR] Transcription returned empty text")
+            raise HTTPException(
+                status_code=400, 
+                detail="Transcription returned empty text. Please speak louder or try again."
+            )
         
         transcription = result["text"].strip()
-        print(f"✅ Transcription: {transcription}")
+        print(f"[DEBUG] Transcription: '{transcription}'")
+        
         # Parse timestamp to datetime object
         if log_data.timestamp:
             timestamp = datetime.fromisoformat(log_data.timestamp.replace('Z', '+00:00'))
@@ -641,6 +668,7 @@ async def create_voice_log_endpoint(
         
         # Auto-categorize
         category = categorize_log(transcription)
+        print(f"[DEBUG] Category: {category}")
         
         # Create log entry
         log_id = f"log_{uuid.uuid4().hex[:12]}"
@@ -659,14 +687,16 @@ async def create_voice_log_endpoint(
         db.commit()
         db.refresh(log)
         
-        # Send notification (pass datetime object, not string)
+        print(f"[DEBUG] Log saved: {log.id}")
+        
+        # Send notification
         if background_tasks:
             background_tasks.add_task(
                 send_family_notification,
                 user_id,
                 transcription,
                 category,
-                timestamp,  # Pass datetime object
+                timestamp,
                 db
             )
         
@@ -681,7 +711,9 @@ async def create_voice_log_endpoint(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating voice log: {e}")
+        print(f"[ERROR] Error creating voice log: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/logs/text")

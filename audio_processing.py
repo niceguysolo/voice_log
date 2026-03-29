@@ -6,55 +6,72 @@ import openai
 import os
 import base64
 import tempfile
+from openai import OpenAI
 
 # Initialize OpenAI client
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def transcribe_audio_from_base64(audio_base64: str) -> dict:
+def transcribe_audio_from_base64(base64_audio: str) -> dict:
     """
-    Transcribe audio using OpenAI Whisper
-    
-    Args:
-        audio_base64: Base64 encoded audio file
-        
-    Returns:
-        dict with 'success' (bool) and 'text' (str)
+    Transcribe audio from base64 string using OpenAI Whisper
+    Returns: {"success": bool, "text": str, "error": str}
     """
     try:
+        print(f"[DEBUG] Transcribing audio, base64 length: {len(base64_audio)}")
+        
         # Decode base64 to bytes
-        audio_bytes = base64.b64decode(audio_base64)
+        audio_bytes = base64.b64decode(base64_audio)
+        print(f"[DEBUG] Decoded to {len(audio_bytes)} bytes")
         
         # Create temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_file:
             temp_file.write(audio_bytes)
             temp_file_path = temp_file.name
         
-        # Transcribe using Whisper
-        with open(temp_file_path, 'rb') as audio_file:
-            transcript = openai.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text"
-            )
+        print(f"[DEBUG] Saved to temp file: {temp_file_path}")
         
-        # Clean up temp file
         try:
-            os.unlink(temp_file_path)
-        except:
-            pass
-        
-        return {
-            "success": True,
-            "text": transcript if isinstance(transcript, str) else transcript.text
-        }
+            # Initialize OpenAI client
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                print("[ERROR] OPENAI_API_KEY not found in environment")
+                return {"success": False, "text": "", "error": "OpenAI API key not configured"}
+            
+            client = OpenAI(api_key=api_key)
+            
+            # Transcribe using Whisper
+            print("[DEBUG] Calling Whisper API...")
+            with open(temp_file_path, 'rb') as audio_file:
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language="en"  # Specify English, or remove for auto-detect
+                )
+            
+            transcription_text = transcript.text.strip()
+            print(f"[DEBUG] Transcription successful: {transcription_text}")
+            
+            return {
+                "success": True,
+                "text": transcription_text,
+                "error": ""
+            }
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                print(f"[DEBUG] Cleaned up temp file: {temp_file_path}")
         
     except Exception as e:
-        print(f"❌ Transcription error: {e}")
+        print(f"[ERROR] Transcription error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": False,
-            "text": ""
+            "text": "",
+            "error": str(e)
         }
-
 
 def text_to_speech(text: str, voice: str = "nova") -> dict:
     """
