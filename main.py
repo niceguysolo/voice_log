@@ -157,29 +157,63 @@ def create_access_token(user_id: str) -> str:
 
 def verify_token(authorization: str = Header(None)) -> str:
     """Verify JWT token and return user_id"""
-    from jose import jwt, JWTError  # Import JWTError, not InvalidTokenError
+    from jose import jwt, JWTError
     
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
+    # Check if authorization header exists
+    if not authorization:
+        raise HTTPException(
+            status_code=401, 
+            detail="Missing authorization header"
+        )
     
-    token = authorization.replace("Bearer ", "")
+    # Check if it starts with "Bearer "
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid authorization format. Expected: Bearer <token>"
+        )
+    
+    # Extract token
+    token = authorization.replace("Bearer ", "").strip()
+    
+    if not token:
+        raise HTTPException(
+            status_code=401, 
+            detail="Token is empty"
+        )
     
     try:
         SECRET_KEY = os.getenv("JWT_SECRET_KEY")
         if not SECRET_KEY:
-            raise HTTPException(status_code=500, detail="JWT_SECRET_KEY not configured")
-            
+            raise HTTPException(
+                status_code=500, 
+                detail="JWT_SECRET_KEY not configured"
+            )
+        
+        # Decode token
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         user_id = payload.get("user_id")
         
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(
+                status_code=401, 
+                detail="Invalid token: missing user_id"
+            )
         
         return user_id
-    except JWTError as e:  # Use JWTError, not InvalidTokenError
+        
+    except JWTError as e:
         print(f"JWT decode error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
+        raise HTTPException(
+            status_code=401, 
+            detail=f"Invalid token: {str(e)}"
+        )
+    except Exception as e:
+        print(f"Token verification error: {e}")
+        raise HTTPException(
+            status_code=401, 
+            detail="Token verification failed"
+        )    
 # ============================================================================
 # SUBSCRIPTION HELPERS
 # ============================================================================
@@ -549,14 +583,16 @@ async def create_voice_log_endpoint(
 ):
     """Create a voice log"""
     try:
+        print(f"📝 Creating voice log for user: {user_id}")
         # Transcribe audio
+        from audio_processing import transcribe_audio_from_base64
         result = transcribe_audio_from_base64(log_data.audio)
         
         if not result["success"] or not result["text"]:
             raise HTTPException(status_code=400, detail="Transcription failed")
         
         transcription = result["text"].strip()
-        
+        print(f"✅ Transcription: {transcription}")
         # Parse timestamp to datetime object
         if log_data.timestamp:
             timestamp = datetime.fromisoformat(log_data.timestamp.replace('Z', '+00:00'))

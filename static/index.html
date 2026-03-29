@@ -1167,27 +1167,51 @@ body.family-member-view #logsSection {
     // INITIALIZATION - CHECK FOR EXISTING SESSION
     // ============================================================================
     
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     console.log('Page loaded, checking for saved session...');
     
     const savedToken = localStorage.getItem('accessToken');
     const savedUser = localStorage.getItem('user');
     
     if (savedToken && savedUser) {
-        console.log('Found saved session, restoring...');
+        console.log('Found saved session, validating token...');
         
         accessToken = savedToken;
         user = JSON.parse(savedUser);
         
-        // Check if user is a family member
-        if (user.is_family_member) {
-            console.log('User is a family member, hiding controls');
-            document.body.classList.add('family-member-view');
-            hideControlsForFamilyMember();
+        // Validate token by making an API call
+        try {
+            const response = await fetch(`${API_URL}/subscription`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+            
+            if (response.status === 401) {
+                console.error('❌ Saved token is invalid');
+                alert('Your session has expired. Please sign in again.');
+                signOut();
+                return;
+            }
+            
+            // Token is valid
+            console.log('✅ Token is valid');
+            
+            // Check if user is a family member
+            if (user.is_family_member) {
+                console.log('User is a family member, hiding controls');
+                document.body.classList.add('family-member-view');
+                hideControlsForFamilyMember();
+            }
+            
+            showApp();
+            loadData();
+            
+        } catch (error) {
+            console.error('Error validating token:', error);
+            alert('Network error. Please sign in again.');
+            signOut();
         }
-        
-        showApp();
-        loadData();
     } else {
         console.log('No saved session, showing sign-in screen');
         showSignIn();
@@ -1258,17 +1282,30 @@ async function signInWithBackend(email, name) {
         }
 
 function signOut() {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('user');
-            accessToken = null;
-            user = null;
-            subscription = null;
-            familyMember = null;
-            
-            document.getElementById('signInScreen').style.display = 'block';
-            document.getElementById('appScreen').style.display = 'none';
-            showSignIn();
-        }
+    // Clear all session data
+    accessToken = null;
+    user = null;
+    subscription = null;
+    viewingUserId = null;
+    
+    // Clear localStorage
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    
+    // Stop auto-refresh if active
+    if (logRefreshInterval) {
+        clearInterval(logRefreshInterval);
+        logRefreshInterval = null;
+    }
+    
+    // Remove family member view class
+    document.body.classList.remove('family-member-view');
+    
+    // Show sign-in screen
+    showSignIn();
+    
+    console.log('✅ Signed out successfully');
+}
 
 function showFamilyLoginModal() {
         const modal = document.getElementById('familyLoginModal');
@@ -1398,9 +1435,41 @@ function backToRecordOptions() {
     document.getElementById('textLogInput').value = '';
 }
 
-function showVoiceRecording() {
+async function showVoiceRecording() {
     document.getElementById('recordOptions').style.display = 'none';
     document.getElementById('voiceRecordingInterface').style.display = 'block';
+    
+    // Check if token exists
+    if (!accessToken) {
+        alert('❌ Session expired. Please sign in again.');
+        signOut();
+        return;
+    }
+    
+    // Validate token by making a quick API call
+    try {
+        const response = await fetch(`${API_URL}/subscription`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+        
+        if (response.status === 401) {
+            console.error('❌ Token is invalid');
+            alert('Your session has expired. Please sign in again.');
+            signOut();
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating token:', error);
+    }
+    
+    // Check permission status
+    const permissionStatus = await checkMicrophonePermission();
+    
+    if (permissionStatus === 'denied') {
+        alert('⚠️ Microphone access is blocked.\n\nPlease enable microphone access in your browser settings.');
+    }
 }
 
 function showTextInput() {
@@ -1573,44 +1642,94 @@ function stopRecording() {
 
 async function processVoiceRecording(audioBlob) {
     try {
+        console.log('📦 Processing audio blob, size:', audioBlob.size);
+        
+        // Check if we have a valid token
+        if (!accessToken) {
+            console.error('❌ No access token found');
+            document.getElementById('recordingStatus').textContent = '❌ Please sign in again';
+            alert('Session expired. Please sign in again.');
+            signOut();
+            return;
+        }
+        
+        console.log('🔑 Using token:', accessToken.substring(0, 20) + '...');
+        
         // Convert to base64
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         
         reader.onloadend = async () => {
-            const base64Audio = reader.result.split(',')[1];
-            
-            // Send to backend
-            const response = await fetch(`${API_URL}/logs`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    audio: base64Audio,
-                    timestamp: new Date().toISOString()
-                }),
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById('recordingStatus').innerHTML = `✅ Saved: "${data.transcription}"`;
+            try {
+                const base64Audio = reader.result.split(',')[1];
+                console.log('📝 Base64 audio length:', base64Audio.length);
                 
-                // Reload logs after 2 seconds, then go back
-                setTimeout(() => {
-                    loadRecentLogs();
-                    backToMainActions();
-                }, 2000);
-            } else {
-                const error = await response.json();
-                document.getElementById('recordingStatus').textContent = '❌ Error: ' + (error.detail || 'Failed to save');
+                // Show processing status
+                document.getElementById('recordingStatus').textContent = '⏳ Uploading...';
+                
+                // Send to backend
+                const response = await fetch(`${API_URL}/logs`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        audio: base64Audio,
+                        timestamp: new Date().toISOString()
+                    }),
+                });
+                
+                console.log('📡 Response status:', response.status);
+                
+                if (response.status === 401) {
+                    // Token is invalid or expired
+                    console.error('❌ Token invalid or expired');
+                    document.getElementById('recordingStatus').textContent = '❌ Session expired';
+                    alert('Your session has expired. Please sign in again.');
+                    signOut();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Log saved:', data);
+                    
+                    document.getElementById('recordingStatus').innerHTML = `✅ Saved: "${data.transcription}"`;
+                    
+                    // Show success toast
+                    if (typeof showToast === 'function') {
+                        showToast('✅ Activity logged successfully!', 'success');
+                    }
+                    
+                    // Reload logs after 2 seconds, then go back
+                    setTimeout(() => {
+                        loadRecentLogs();
+                        backToMainActions();
+                    }, 2000);
+                } else {
+                    const error = await response.json();
+                    console.error('❌ Server error:', error);
+                    document.getElementById('recordingStatus').textContent = '❌ Error: ' + (error.detail || 'Failed to save');
+                    alert('Error saving activity: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (uploadError) {
+                console.error('❌ Upload error:', uploadError);
+                document.getElementById('recordingStatus').textContent = '❌ Upload failed';
+                alert('Network error. Please check your connection and try again.');
             }
         };
         
+        reader.onerror = (error) => {
+            console.error('❌ FileReader error:', error);
+            document.getElementById('recordingStatus').textContent = '❌ Error processing audio';
+            alert('Error processing audio file');
+        };
+        
     } catch (error) {
-        console.error('Error processing recording:', error);
+        console.error('❌ Error processing recording:', error);
         document.getElementById('recordingStatus').textContent = '❌ Error processing audio';
+        alert('Error: ' + error.message);
     }
 }
 
