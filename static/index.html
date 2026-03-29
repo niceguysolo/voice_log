@@ -863,7 +863,14 @@ body.family-member-view #logsSection {
             <div id="recordingStatus" style="font-size: 18px; margin-bottom: 20px; min-height: 30px;">
                 Press the button to start recording
             </div>
-            
+            <!-- Add this inside voiceRecordingInterface, before the record button -->
+            <div style="margin-bottom: 20px;">
+                <button 
+                    onclick="testMicrophone()"
+                    style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                    🧪 Test Microphone
+                </button>
+            </div>
             <!-- Record Button -->
             <button 
                 id="voiceRecordButton"
@@ -1421,43 +1428,146 @@ async function toggleVoiceRecording() {
 
 async function startRecording() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        console.log('🎤 Requesting microphone access...');
+        
+        // Request microphone with specific constraints
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+        
+        console.log('✅ Microphone access granted');
+        
+        // Check if MediaRecorder is supported
+        if (!window.MediaRecorder) {
+            alert('Your browser does not support audio recording. Please use Chrome, Firefox, or Edge.');
+            return;
+        }
+        
+        // Determine the best audio format
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+            mimeType = 'audio/ogg';
+        }
+        
+        console.log('🎵 Using audio format:', mimeType);
+        
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
         audioChunks = [];
         
         mediaRecorder.ondataavailable = (event) => {
-            audioChunks.push(event.data);
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+                console.log('📊 Audio chunk received:', event.data.size, 'bytes');
+            }
         };
         
         mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            console.log('⏹️ Recording stopped, processing...');
+            
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => {
+                track.stop();
+                console.log('🔇 Microphone track stopped');
+            });
+            
+            if (audioChunks.length === 0) {
+                document.getElementById('recordingStatus').textContent = '❌ No audio recorded';
+                return;
+            }
+            
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            console.log('📦 Audio blob created:', audioBlob.size, 'bytes');
+            
             await processVoiceRecording(audioBlob);
+        };
+        
+        mediaRecorder.onerror = (event) => {
+            console.error('❌ MediaRecorder error:', event.error);
+            alert('Recording error: ' + event.error);
         };
         
         mediaRecorder.start();
         isRecording = true;
         
+        console.log('🔴 Recording started');
+        
         // Update UI
-        document.getElementById('voiceRecordButton').style.background = '#ff3b30';
-        document.getElementById('voiceRecordButton').textContent = '⏹️';
+        const recordButton = document.getElementById('voiceRecordButton');
+        if (recordButton) {
+            recordButton.style.background = '#ff3b30';
+            recordButton.textContent = '⏹️';
+        }
+        
         document.getElementById('recordingStatus').textContent = '🔴 Recording... Tap to stop';
         
     } catch (error) {
-        console.error('Error starting recording:', error);
-        alert('Could not access microphone. Please check permissions.');
+        console.error('❌ Error starting recording:', error);
+        
+        // More detailed error messages
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            alert('Microphone access denied. Please allow microphone access in your browser settings.');
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            alert('No microphone found. Please connect a microphone and try again.');
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            alert('Microphone is already in use by another application. Please close other apps using the microphone.');
+        } else if (error.name === 'OverconstrainedError') {
+            alert('Could not start recording with the requested settings. Trying basic settings...');
+            
+            // Retry with basic settings
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Continue with basic stream...
+                console.log('✅ Microphone access granted with basic settings');
+            } catch (retryError) {
+                alert('Still cannot access microphone: ' + retryError.message);
+            }
+        } else {
+            alert('Could not access microphone: ' + error.message);
+        }
+        
+        // Reset UI
+        isRecording = false;
+        const recordButton = document.getElementById('voiceRecordButton');
+        if (recordButton) {
+            recordButton.style.background = 'white';
+            recordButton.textContent = '🎤';
+        }
+        document.getElementById('recordingStatus').textContent = 'Press the button to start recording';
     }
 }
 
 function stopRecording() {
     if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        isRecording = false;
+        console.log('⏹️ Stopping recording...');
         
-        // Update UI
-        document.getElementById('voiceRecordButton').style.background = 'white';
-        document.getElementById('voiceRecordButton').textContent = '🎤';
-        document.getElementById('recordingStatus').textContent = '⏳ Processing...';
+        try {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // Update UI
+            const recordButton = document.getElementById('voiceRecordButton');
+            if (recordButton) {
+                recordButton.style.background = 'white';
+                recordButton.textContent = '🎤';
+            }
+            document.getElementById('recordingStatus').textContent = '⏳ Processing...';
+            
+        } catch (error) {
+            console.error('Error stopping recording:', error);
+            alert('Error stopping recording: ' + error.message);
+        }
+    } else {
+        console.log('⚠️ No active recording to stop');
     }
 }
 
@@ -2349,6 +2459,42 @@ if (viewingUserId) {
         showToast('✅ Logs refreshed!', 'success');
     }
 }
+async function testMicrophone() {
+    try {
+        console.log('🧪 Testing microphone...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        alert('✅ Microphone is working!\n\nYou can now record audio.');
+        
+        // Stop the test stream
+        stream.getTracks().forEach(track => track.stop());
+        
+    } catch (error) {
+        console.error('Microphone test failed:', error);
+        
+        let errorMessage = '❌ Microphone test failed\n\n';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Permission denied. Please allow microphone access.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No microphone found. Please connect a microphone.';
+        } else if (error.name === 'NotReadableError') {
+            errorMessage += 'Microphone is being used by another application.';
+        } else {
+            errorMessage += 'Error: ' + error.message;
+        }
+        
+        errorMessage += '\n\nTroubleshooting:\n';
+        errorMessage += '1. Check browser permissions (click lock icon in address bar)\n';
+        errorMessage += '2. Make sure no other app is using the microphone\n';
+        errorMessage += '3. Try reloading the page\n';
+        errorMessage += '4. Try a different browser (Chrome, Firefox, Edge)';
+        
+        alert(errorMessage);
+    }
+}
+
 </script>
 </body>
 </html>
